@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,9 @@ import {
   Trash2,
   Eye,
   Filter,
+  Upload,
+  Loader2,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,66 +49,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-
-// Mock data
-const mockPatients = [
-  {
-    id: "1",
-    name: "João Silva",
-    age: 45,
-    gender: "Masculino",
-    condition: "TDAH",
-    medications: ["Metilfenidato 20mg"],
-    lastVisit: "2024-01-15",
-    efficacy: 85,
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Maria Santos",
-    age: 32,
-    gender: "Feminino",
-    condition: "Depressão",
-    medications: ["Venlafaxina 75mg", "Clonazepam 0.5mg"],
-    lastVisit: "2024-01-14",
-    efficacy: 72,
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Pedro Oliveira",
-    age: 58,
-    gender: "Masculino",
-    condition: "Insônia",
-    medications: ["Quetiapina 25mg"],
-    lastVisit: "2024-01-12",
-    efficacy: 68,
-    status: "monitoring",
-  },
-  {
-    id: "4",
-    name: "Ana Costa",
-    age: 28,
-    gender: "Feminino",
-    condition: "Ansiedade",
-    medications: ["Sertralina 50mg"],
-    lastVisit: "2024-01-10",
-    efficacy: 91,
-    status: "active",
-  },
-  {
-    id: "5",
-    name: "Carlos Ferreira",
-    age: 63,
-    gender: "Masculino",
-    condition: "Bipolar",
-    medications: ["Lítio 300mg", "Lamotrigina 100mg"],
-    lastVisit: "2024-01-08",
-    efficacy: 45,
-    status: "critical",
-  },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  savePatient,
+  uploadPatientPhoto,
+  getPatients,
+  deletePatient,
+  type Patient,
+} from "@/lib/patients";
+import { toast } from "@/hooks/use-toast";
 
 const statusStyles = {
   active: { label: "Ativo", className: "bg-success/10 text-success border-success/20" },
@@ -114,12 +68,238 @@ const statusStyles = {
 };
 
 export default function Patients() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const filteredPatients = mockPatients.filter((patient) =>
+  // Estados do formulário
+  const [formData, setFormData] = useState({
+    name: "",
+    age: "",
+    gender: "" as "Masculino" | "Feminino" | "Outro" | "",
+    condition: "",
+    clinicalHistory: "",
+    allergies: "",
+    currentMedications: "",
+  });
+
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  // Carregar pacientes do Firebase
+  useEffect(() => {
+    const loadPatients = async () => {
+      if (!user) return;
+
+      try {
+        setLoading(true);
+        const patientsData = await getPatients(user.uid);
+        setPatients(patientsData);
+      } catch (error: any) {
+        console.error("Erro ao carregar pacientes:", error);
+        
+        // Só mostrar erro se não for erro de permissão/configuração
+        const errorCode = error?.code || "";
+        const errorMessage = error?.message || "";
+        const isPermissionError =
+          errorCode.includes("permission") ||
+          errorCode.includes("PERMISSION") ||
+          errorMessage.includes("permission") ||
+          errorCode.includes("database") ||
+          errorMessage.includes("database");
+
+        if (!isPermissionError) {
+          toast({
+            title: "Erro ao carregar pacientes",
+            description: "Não foi possível carregar a lista de pacientes.",
+            variant: "destructive",
+          });
+        }
+        
+        // Mesmo com erro, usar lista vazia
+        setPatients([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPatients();
+  }, [user]);
+
+  // Filtrar pacientes
+  const filteredPatients = patients.filter((patient) =>
     patient.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Resetar formulário
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      age: "",
+      gender: "",
+      condition: "",
+      clinicalHistory: "",
+      allergies: "",
+      currentMedications: "",
+    });
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
+  // Handle file change
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar tipo de arquivo
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Arquivo inválido",
+          description: "Por favor, selecione uma imagem.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Arquivo muito grande",
+          description: "A imagem deve ter no máximo 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Salvar paciente
+  const handleSavePatient = async () => {
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para cadastrar pacientes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação
+    if (!formData.name || !formData.age || !formData.gender || !formData.condition) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos obrigatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Criar objeto do paciente
+      const patientData: Patient = {
+        name: formData.name,
+        age: parseInt(formData.age),
+        gender: formData.gender as "Masculino" | "Feminino" | "Outro",
+        condition: formData.condition,
+        clinicalHistory: formData.clinicalHistory || undefined,
+        allergies: formData.allergies || undefined,
+        currentMedications: formData.currentMedications || undefined,
+      };
+
+      // Salvar paciente no Realtime Database
+      const patientId = await savePatient(patientData, user.uid);
+
+      // Upload da foto se houver
+      if (photoFile && patientId) {
+        try {
+          const photoURL = await uploadPatientPhoto(photoFile, user.uid, patientId);
+          // Atualizar paciente com URL da foto
+          await savePatient({ ...patientData, id: patientId, photoURL }, user.uid);
+        } catch (error) {
+          console.error("Erro ao fazer upload da foto:", error);
+          toast({
+            title: "Aviso",
+            description: "Paciente cadastrado, mas houve erro ao fazer upload da foto.",
+            variant: "default",
+          });
+        }
+      }
+
+      toast({
+        title: "Paciente cadastrado!",
+        description: `${formData.name} foi cadastrado com sucesso.`,
+      });
+
+      // Recarregar lista de pacientes
+      const patientsData = await getPatients(user.uid);
+      setPatients(patientsData);
+
+      // Fechar dialog e resetar formulário
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error: any) {
+      console.error("Erro ao salvar paciente:", error);
+      
+      let errorMessage = "Não foi possível cadastrar o paciente. Tente novamente.";
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.code) {
+        if (error.code.includes("permission")) {
+          errorMessage = "Permissão negada. Verifique as regras do Realtime Database no Firebase Console.";
+        } else if (error.code.includes("database")) {
+          errorMessage = "Realtime Database não está configurado. Configure no Firebase Console.";
+        }
+      }
+      
+      toast({
+        title: "Erro ao cadastrar paciente",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Deletar paciente
+  const handleDeletePatient = async (patientId: string) => {
+    if (!user) return;
+
+    if (!confirm("Tem certeza que deseja excluir este paciente?")) {
+      return;
+    }
+
+    try {
+      await deletePatient(patientId, user.uid);
+      toast({
+        title: "Paciente excluído",
+        description: "O paciente foi excluído com sucesso.",
+      });
+
+      // Recarregar lista
+      const patientsData = await getPatients(user.uid);
+      setPatients(patientsData);
+    } catch (error) {
+      console.error("Erro ao deletar paciente:", error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o paciente.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <MainLayout>
@@ -136,12 +316,12 @@ export default function Patients() {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="neuro">
+              <Button variant="neuro" onClick={resetForm}>
                 <Plus className="w-4 h-4 mr-2" />
                 Novo Paciente
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display">Cadastrar Paciente</DialogTitle>
                 <DialogDescription>
@@ -149,54 +329,158 @@ export default function Patients() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                {/* Upload de Foto */}
+                <div className="space-y-2">
+                  <Label>Foto do Paciente</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      {photoPreview ? (
+                        <Avatar className="w-20 h-20">
+                          <AvatarImage src={photoPreview} alt="Preview" />
+                          <AvatarFallback>
+                            <User className="w-10 h-10" />
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                          <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                        id="photo-upload"
+                      />
+                      <Label
+                        htmlFor="photo-upload"
+                        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-input rounded-md hover:bg-accent"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {photoFile ? "Alterar Foto" : "Adicionar Foto"}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        JPG, PNG ou GIF. Máximo 5MB.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Nome Completo</Label>
-                    <Input placeholder="Nome do paciente" />
+                    <Label>Nome Completo *</Label>
+                    <Input
+                      placeholder="Nome do paciente"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Idade</Label>
-                    <Input type="number" placeholder="Idade" />
+                    <Label>Idade *</Label>
+                    <Input
+                      type="number"
+                      placeholder="Idade"
+                      value={formData.age}
+                      onChange={(e) =>
+                        setFormData({ ...formData, age: e.target.value })
+                      }
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Gênero</Label>
-                    <Select>
+                    <Label>Gênero *</Label>
+                    <Select
+                      value={formData.gender}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          gender: value as "Masculino" | "Feminino" | "Outro",
+                        })
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="male">Masculino</SelectItem>
-                        <SelectItem value="female">Feminino</SelectItem>
-                        <SelectItem value="other">Outro</SelectItem>
+                        <SelectItem value="Masculino">Masculino</SelectItem>
+                        <SelectItem value="Feminino">Feminino</SelectItem>
+                        <SelectItem value="Outro">Outro</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Condição Principal</Label>
-                    <Input placeholder="Ex: TDAH, Depressão" />
+                    <Label>Condição Principal *</Label>
+                    <Input
+                      placeholder="Ex: TDAH, Depressão"
+                      value={formData.condition}
+                      onChange={(e) =>
+                        setFormData({ ...formData, condition: e.target.value })
+                      }
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Histórico Clínico</Label>
-                  <Textarea placeholder="Descreva o histórico clínico relevante" rows={3} />
+                  <Textarea
+                    placeholder="Descreva o histórico clínico relevante"
+                    rows={3}
+                    value={formData.clinicalHistory}
+                    onChange={(e) =>
+                      setFormData({ ...formData, clinicalHistory: e.target.value })
+                    }
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Sensibilidades / Alergias</Label>
-                  <Input placeholder="Listar sensibilidades conhecidas" />
+                  <Input
+                    placeholder="Listar sensibilidades conhecidas"
+                    value={formData.allergies}
+                    onChange={(e) =>
+                      setFormData({ ...formData, allergies: e.target.value })
+                    }
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Medicamentos em Uso</Label>
-                  <Textarea placeholder="Liste os medicamentos atuais" rows={2} />
+                  <Textarea
+                    placeholder="Liste os medicamentos atuais"
+                    rows={2}
+                    value={formData.currentMedications}
+                    onChange={(e) =>
+                      setFormData({ ...formData, currentMedications: e.target.value })
+                    }
+                  />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsDialogOpen(false);
+                    resetForm();
+                  }}
+                  disabled={saving}
+                >
                   Cancelar
                 </Button>
-                <Button variant="neuro" onClick={() => setIsDialogOpen(false)}>
-                  Cadastrar
+                <Button variant="neuro" onClick={handleSavePatient} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Cadastrando...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Cadastrar
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -224,108 +508,133 @@ export default function Patients() {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div className="glass-card rounded-xl p-4">
             <p className="text-sm text-muted-foreground">Total de Pacientes</p>
-            <p className="text-2xl font-display font-bold mt-1">{mockPatients.length}</p>
+            <p className="text-2xl font-display font-bold mt-1">{patients.length}</p>
           </div>
           <div className="glass-card rounded-xl p-4">
             <p className="text-sm text-muted-foreground">Ativos</p>
             <p className="text-2xl font-display font-bold mt-1 text-success">
-              {mockPatients.filter((p) => p.status === "active").length}
+              {patients.filter((p) => (p as any).status === "active").length}
             </p>
           </div>
           <div className="glass-card rounded-xl p-4">
             <p className="text-sm text-muted-foreground">Em Monitoramento</p>
             <p className="text-2xl font-display font-bold mt-1 text-warning">
-              {mockPatients.filter((p) => p.status === "monitoring").length}
+              {patients.filter((p) => (p as any).status === "monitoring").length}
             </p>
           </div>
           <div className="glass-card rounded-xl p-4">
             <p className="text-sm text-muted-foreground">Críticos</p>
             <p className="text-2xl font-display font-bold mt-1 text-destructive">
-              {mockPatients.filter((p) => p.status === "critical").length}
+              {patients.filter((p) => (p as any).status === "critical").length}
             </p>
           </div>
         </div>
 
         {/* Table */}
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Paciente</TableHead>
-                <TableHead>Condição</TableHead>
-                <TableHead>Medicamentos</TableHead>
-                <TableHead>Última Visita</TableHead>
-                <TableHead>Eficácia</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPatients.map((patient) => (
-                <TableRow key={patient.id} className="cursor-pointer">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-neuro-gradient flex items-center justify-center">
-                        <User className="w-5 h-5 text-primary-foreground" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{patient.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {patient.age} anos • {patient.gender}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{patient.condition}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {patient.medications.map((med, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {med}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>{new Date(patient.lastVisit).toLocaleDateString("pt-BR")}</TableCell>
-                  <TableCell>
-                    <EfficacyRing value={patient.efficacy} size="sm" showLabel={false} />
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cn(statusStyles[patient.status as keyof typeof statusStyles].className)}
-                    >
-                      {statusStyles[patient.status as keyof typeof statusStyles].label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver Perfil
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+        {loading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="glass-card rounded-2xl overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Condição</TableHead>
+                  <TableHead>Medicamentos</TableHead>
+                  <TableHead>Última Visita</TableHead>
+                  <TableHead>Eficácia</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {filteredPatients.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Nenhum paciente cadastrado ainda.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredPatients.map((patient) => (
+                    <TableRow key={patient.id} className="cursor-pointer">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={patient.photoURL} alt={patient.name} />
+                            <AvatarFallback className="bg-neuro-gradient">
+                              <User className="w-5 h-5 text-primary-foreground" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{patient.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {patient.age} anos • {patient.gender}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{patient.condition}</TableCell>
+                      <TableCell>
+                        {patient.currentMedications ? (
+                          <div className="flex flex-wrap gap-1">
+                            {patient.currentMedications.split(",").map((med, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {med.trim()}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {patient.createdAt
+                          ? new Date(patient.createdAt).toLocaleDateString("pt-BR")
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <EfficacyRing value={85} size="sm" showLabel={false} />
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={statusStyles.active.className}>
+                          {statusStyles.active.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Ver Perfil
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => patient.id && handleDeletePatient(patient.id)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </MainLayout>
   );

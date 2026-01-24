@@ -75,6 +75,13 @@ const formMap: Record<string, string> = {
   injection: "Injetável",
 };
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Check, ChevronDown } from "lucide-react";
+
 export default function Medications() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,6 +89,16 @@ export default function Medications() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Estados para ações
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewingMedication, setViewingMedication] = useState<Medication | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [medicationToDelete, setMedicationToDelete] = useState<Medication | null>(null);
+
+  // Estados para filtro
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
 
   // Estados do formulário
   const [formData, setFormData] = useState({
@@ -106,7 +123,7 @@ export default function Medications() {
         setMedications(medicationsData);
       } catch (error: any) {
         console.error("Erro ao carregar medicamentos:", error);
-        
+
         const errorCode = error?.code || "";
         const errorMessage = error?.message || "";
         const isPermissionError =
@@ -123,7 +140,7 @@ export default function Medications() {
             variant: "destructive",
           });
         }
-        
+
         setMedications([]);
       } finally {
         setLoading(false);
@@ -133,11 +150,28 @@ export default function Medications() {
     loadMedications();
   }, [user]);
 
+  // Toggle de seleção de classe
+  const toggleClass = (className: string) => {
+    setSelectedClasses(prev =>
+      prev.includes(className)
+        ? prev.filter(c => c !== className)
+        : [...prev, className]
+    );
+  };
+
   // Filtrar medicamentos
   const filteredMedications = medications.filter(
-    (med) =>
-      med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      med.brandName.toLowerCase().includes(searchTerm.toLowerCase())
+    (med) => {
+      const matchesSearch =
+        med.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        med.brandName.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesClass =
+        selectedClasses.length === 0 ||
+        selectedClasses.includes(med.therapeuticClass);
+
+      return matchesSearch && matchesClass;
+    }
   );
 
   // Resetar formulário
@@ -152,6 +186,72 @@ export default function Medications() {
       maxDose: "",
       unit: "mg",
     });
+    setEditingId(null);
+  };
+
+  // Abrir modal de edição
+  const handleEdit = (medication: Medication) => {
+    setEditingId(medication.id || null);
+
+    // Encontrar chave da classe terapêutica pelo valor (nome legível)
+    const therapeuticClassKey = Object.keys(therapeuticClassMap).find(
+      key => therapeuticClassMap[key] === medication.therapeuticClass
+    ) || medication.therapeuticClass;
+
+    // Encontrar chave da forma farmacêutica pelo valor
+    const formKey = Object.keys(formMap).find(
+      key => formMap[key] === medication.form
+    ) || medication.form;
+
+    setFormData({
+      name: medication.name,
+      brandName: medication.brandName,
+      activeIngredient: medication.activeIngredient,
+      therapeuticClass: therapeuticClassKey,
+      form: formKey,
+      minDose: medication.minDose.toString(),
+      maxDose: medication.maxDose.toString(),
+      unit: medication.unit,
+    });
+    setIsDialogOpen(true);
+  };
+
+  // Abrir modal de visualização
+  const handleView = (medication: Medication) => {
+    setViewingMedication(medication);
+  };
+
+  // Abrir modal de exclusão
+  const handleDelete = (medication: Medication) => {
+    setMedicationToDelete(medication);
+    setIsDeleteOpen(true);
+  };
+
+  // Confirmar exclusão
+  const confirmDelete = async () => {
+    if (!user || !medicationToDelete?.id) return;
+
+    try {
+      await deleteMedication(medicationToDelete.id, user.uid);
+
+      toast({
+        title: "Medicamento excluído",
+        description: "O medicamento foi removido com sucesso.",
+      });
+
+      // Atualizar lista localmente
+      setMedications(medications.filter(m => m.id !== medicationToDelete.id));
+    } catch (error) {
+      console.error("Erro ao excluir medicamento:", error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o medicamento.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteOpen(false);
+      setMedicationToDelete(null);
+    }
   };
 
   // Salvar medicamento
@@ -211,6 +311,7 @@ export default function Medications() {
 
       // Criar objeto do medicamento
       const medicationData: Medication = {
+        ...(editingId ? { id: editingId } : {}),
         name: formData.name,
         brandName: formData.brandName,
         activeIngredient: formData.activeIngredient,
@@ -225,8 +326,8 @@ export default function Medications() {
       await saveMedication(medicationData, user.uid);
 
       toast({
-        title: "Medicamento cadastrado!",
-        description: `${formData.name} foi cadastrado com sucesso.`,
+        title: editingId ? "Medicamento atualizado!" : "Medicamento cadastrado!",
+        description: `${formData.name} foi ${editingId ? "atualizado" : "cadastrado"} com sucesso.`,
       });
 
       // Recarregar lista de medicamentos
@@ -238,9 +339,9 @@ export default function Medications() {
       resetForm();
     } catch (error: any) {
       console.error("Erro ao salvar medicamento:", error);
-      
+
       let errorMessage = "Não foi possível cadastrar o medicamento. Tente novamente.";
-      
+
       if (error?.message) {
         errorMessage = error.message;
       } else if (error?.code) {
@@ -250,9 +351,9 @@ export default function Medications() {
           errorMessage = "Realtime Database não está configurado. Configure no Firebase Console.";
         }
       }
-      
+
       toast({
-        title: "Erro ao cadastrar medicamento",
+        title: "Erro ao salvar medicamento",
         description: errorMessage,
         variant: "destructive",
       });
@@ -274,7 +375,10 @@ export default function Medications() {
               Catálogo de medicamentos disponíveis
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
               <Button variant="neuro">
                 <Plus className="w-4 h-4 mr-2" />
@@ -283,9 +387,11 @@ export default function Medications() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
-                <DialogTitle className="font-display">Cadastrar Medicamento</DialogTitle>
+                <DialogTitle className="font-display">
+                  {editingId ? "Editar Medicamento" : "Cadastrar Medicamento"}
+                </DialogTitle>
                 <DialogDescription>
-                  Adicione um novo medicamento ao catálogo
+                  {editingId ? "Atualize os dados do medicamento" : "Adicione um novo medicamento ao catálogo"}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -412,35 +518,163 @@ export default function Medications() {
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Cadastrando...
+                      Salvando...
                     </>
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      Cadastrar
+                      {editingId ? "Atualizar" : "Cadastrar"}
                     </>
                   )}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Dialog de Visualização */}
+          <Dialog open={!!viewingMedication} onOpenChange={(open) => !open && setViewingMedication(null)}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle className="font-display">Detalhes do Medicamento</DialogTitle>
+              </DialogHeader>
+              {viewingMedication && (
+                <div className="grid gap-6 py-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <Pill className="w-8 h-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-display text-xl font-bold">{viewingMedication.name}</h3>
+                      <p className="text-muted-foreground">{viewingMedication.brandName}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <Label className="text-muted-foreground">Princípio Ativo</Label>
+                      <p className="font-medium">{viewingMedication.activeIngredient}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-muted-foreground">Classe Terapêutica</Label>
+                      <Badge variant="outline" className={therapeuticClassColors[viewingMedication.therapeuticClass]}>
+                        {viewingMedication.therapeuticClass}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-muted-foreground">Forma Farmacêutica</Label>
+                      <p className="font-medium">{viewingMedication.form}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-muted-foreground">Dosagem</Label>
+                      <p className="font-medium">
+                        {viewingMedication.minDose} - {viewingMedication.maxDose} {viewingMedication.unit}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t text-sm text-muted-foreground flex justify-between">
+                    <span>ID: {viewingMedication.id}</span>
+                    <span>
+                      Cadastrado em: {viewingMedication.createdAt ? new Date(viewingMedication.createdAt).toLocaleDateString() : "-"}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button onClick={() => setViewingMedication(null)}>Fechar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog de Confirmação de Exclusão */}
+          <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Excluir Medicamento</DialogTitle>
+                <DialogDescription>
+                  Tem certeza que deseja excluir o medicamento <strong>{medicationToDelete?.name}</strong>?
+                  Esta ação não pode ser desfeita.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button variant="destructive" onClick={confirmDelete}>
+                  Excluir
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar medicamento..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        {/* Search and Filters */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar medicamento..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <Collapsible
+              open={isFilterOpen}
+              onOpenChange={setIsFilterOpen}
+              className="w-full sm:w-auto"
+            >
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filtrar por Classe
+                  <ChevronDown className={cn("w-4 h-4 ml-2 transition-transform duration-200", isFilterOpen ? "rotate-180" : "")} />
+                </Button>
+              </CollapsibleTrigger>
+            </Collapsible>
           </div>
-          <Button variant="outline">
-            <Filter className="w-4 h-4 mr-2" />
-            Filtrar por Classe
-          </Button>
+
+          <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+            <CollapsibleContent className="space-y-2 data-[state=open]:animate-slideDown data-[state=closed]:animate-slideUp overflow-hidden">
+              <div className="bg-muted/30 p-4 rounded-xl border border-border">
+                <p className="text-sm font-medium mb-3">Selecione as classes terapêuticas:</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(therapeuticClassMap).map(([key, label]) => {
+                    const isSelected = selectedClasses.includes(label);
+                    return (
+                      <div
+                        key={key}
+                        onClick={() => toggleClass(label)}
+                        className={cn(
+                          "cursor-pointer inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                          isSelected
+                            ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/80"
+                            : "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                          // Use a cor correspondente se disponível
+                          !isSelected && therapeuticClassColors[label] ? therapeuticClassColors[label] + " bg-opacity-10 border-opacity-20 hover:bg-opacity-20" : ""
+                        )}
+                      >
+                        {isSelected && <Check className="w-3 h-3 mr-1" />}
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+                {selectedClasses.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedClasses([])}
+                    className="mt-3 h-8 text-xs text-muted-foreground hover:text-foreground p-0"
+                  >
+                    Limpar filtros
+                  </Button>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Grid of Medication Cards */}
@@ -456,78 +690,81 @@ export default function Medications() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredMedications.map((med) => (
-            <div key={med.id} className="glass-card rounded-2xl p-6 hover:shadow-lg transition-all">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Pill className="w-6 h-6 text-primary" />
+              <div key={med.id} className="glass-card rounded-2xl p-6 hover:shadow-lg transition-all">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Pill className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-display font-semibold">{med.name}</h3>
+                      <p className="text-sm text-muted-foreground">{med.brandName}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-display font-semibold">{med.name}</h3>
-                    <p className="text-sm text-muted-foreground">{med.brandName}</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleView(med)}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ver Detalhes
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEdit(med)}>
+                        <Edit className="w-4 h-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => handleDelete(med)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Beaker className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">{med.activeIngredient}</span>
+                  </div>
+
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-xs",
+                      therapeuticClassColors[med.therapeuticClass] || "bg-muted"
+                    )}
+                  >
+                    {med.therapeuticClass}
+                  </Badge>
+
+                  <div className="pt-3 border-t border-border space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Forma</span>
+                      <span className="font-medium">{med.form}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Dose</span>
+                      <span className="font-medium">
+                        {med.minDose} - {med.maxDose} {med.unit}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Cadastrado em</span>
+                      <span className="font-medium">
+                        {med.createdAt
+                          ? new Date(med.createdAt).toLocaleDateString("pt-BR")
+                          : "-"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Ver Detalhes
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Beaker className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">{med.activeIngredient}</span>
-                </div>
-
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-xs",
-                    therapeuticClassColors[med.therapeuticClass] || "bg-muted"
-                  )}
-                >
-                  {med.therapeuticClass}
-                </Badge>
-
-                <div className="pt-3 border-t border-border space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Forma</span>
-                    <span className="font-medium">{med.form}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Dose</span>
-                    <span className="font-medium">
-                      {med.minDose} - {med.maxDose} {med.unit}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Cadastrado em</span>
-                    <span className="font-medium">
-                      {med.createdAt
-                        ? new Date(med.createdAt).toLocaleDateString("pt-BR")
-                        : "-"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
             ))}
           </div>
         )}

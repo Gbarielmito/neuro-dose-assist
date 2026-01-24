@@ -17,13 +17,24 @@ export interface Patient {
   createdBy?: string;
 }
 
+// Função auxiliar para remover campos undefined (Realtime Database não aceita undefined)
+function removeUndefinedFields(obj: any): any {
+  const cleaned: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      cleaned[key] = obj[key];
+    }
+  }
+  return cleaned;
+}
+
 // Salvar paciente no Realtime Database
 export async function savePatient(patient: Patient, userId: string): Promise<string> {
   try {
     if (patient.id) {
       // Atualizar paciente existente
       const patientRef = ref(realtimeDb, `users/${userId}/patients/${patient.id}`);
-      const updateData = {
+      const updateData = removeUndefinedFields({
         name: patient.name,
         age: patient.age,
         gender: patient.gender,
@@ -33,7 +44,7 @@ export async function savePatient(patient: Patient, userId: string): Promise<str
         currentMedications: patient.currentMedications,
         photoURL: patient.photoURL,
         updatedAt: new Date().toISOString(),
-      };
+      });
       await set(patientRef, updateData);
       return patient.id;
     } else {
@@ -41,7 +52,7 @@ export async function savePatient(patient: Patient, userId: string): Promise<str
       const patientsRef = ref(realtimeDb, `users/${userId}/patients`);
       const newPatientRef = push(patientsRef);
       
-      const patientData = {
+      const patientData = removeUndefinedFields({
         name: patient.name,
         age: patient.age,
         gender: patient.gender,
@@ -53,7 +64,7 @@ export async function savePatient(patient: Patient, userId: string): Promise<str
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         createdBy: userId,
-      };
+      });
 
       await set(newPatientRef, patientData);
       return newPatientRef.key || "";

@@ -71,9 +71,13 @@ export default function Patients() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false); // Modal de visualização
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null); // Paciente em edição
+  const [viewingPatient, setViewingPatient] = useState<Patient | null>(null); // Paciente em visualização
 
   // Estados do formulário
   const [formData, setFormData] = useState({
@@ -100,8 +104,7 @@ export default function Patients() {
         setPatients(patientsData);
       } catch (error: any) {
         console.error("Erro ao carregar pacientes:", error);
-        
-        // Só mostrar erro se não for erro de permissão/configuração
+
         const errorCode = error?.code || "";
         const errorMessage = error?.message || "";
         const isPermissionError =
@@ -118,8 +121,6 @@ export default function Patients() {
             variant: "destructive",
           });
         }
-        
-        // Mesmo com erro, usar lista vazia
         setPatients([]);
       } finally {
         setLoading(false);
@@ -147,13 +148,36 @@ export default function Patients() {
     });
     setPhotoFile(null);
     setPhotoPreview(null);
+    setEditingPatient(null); // Resetar edição
+  };
+
+  // Preencher formulário para edição
+  const handleEditClick = (patient: Patient) => {
+    setEditingPatient(patient);
+    setFormData({
+      name: patient.name,
+      age: patient.age.toString(),
+      gender: patient.gender,
+      condition: patient.condition,
+      clinicalHistory: patient.clinicalHistory || "",
+      allergies: patient.allergies || "",
+      currentMedications: patient.currentMedications || "",
+    });
+    setPhotoPreview(patient.photoURL || null);
+    setPhotoFile(null); // Resetar arquivo novo, manter preview atual
+    setIsDialogOpen(true);
+  };
+
+  // Abrir visualização
+  const handleViewClick = (patient: Patient) => {
+    setViewingPatient(patient);
+    setIsViewDialogOpen(true);
   };
 
   // Handle file change
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validar tipo de arquivo
       if (!file.type.startsWith("image/")) {
         toast({
           title: "Arquivo inválido",
@@ -162,8 +186,6 @@ export default function Patients() {
         });
         return;
       }
-
-      // Validar tamanho (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Arquivo muito grande",
@@ -182,7 +204,7 @@ export default function Patients() {
     }
   };
 
-  // Salvar paciente
+  // Salvar paciente (Criar ou Atualizar)
   const handleSavePatient = async () => {
     if (!user) {
       toast({
@@ -193,7 +215,6 @@ export default function Patients() {
       return;
     }
 
-    // Validação
     if (!formData.name || !formData.age || !formData.gender || !formData.condition) {
       toast({
         title: "Campos obrigatórios",
@@ -206,8 +227,8 @@ export default function Patients() {
     try {
       setSaving(true);
 
-      // Criar objeto do paciente
       const patientData: Patient = {
+        id: editingPatient?.id, // Manter ID se for edição
         name: formData.name,
         age: parseInt(formData.age),
         gender: formData.gender as "Masculino" | "Feminino" | "Outro",
@@ -215,57 +236,47 @@ export default function Patients() {
         clinicalHistory: formData.clinicalHistory || undefined,
         allergies: formData.allergies || undefined,
         currentMedications: formData.currentMedications || undefined,
+        photoURL: editingPatient?.photoURL // Manter foto antiga se não houver nova
       };
+      console.log("Dados do paciente:", patientData);
 
-      // Salvar paciente no Realtime Database
+      // Salvar (upsert)
+      console.log("Chamando savePatient...");
       const patientId = await savePatient(patientData, user.uid);
+      console.log("Paciente salvo com ID:", patientId);
 
-      // Upload da foto se houver
       if (photoFile && patientId) {
         try {
+          console.log("Iniciando upload da foto...");
           const photoURL = await uploadPatientPhoto(photoFile, user.uid, patientId);
-          // Atualizar paciente com URL da foto
+          console.log("Foto enviada, atualizando URL...");
+          // Atualizar com nova foto
           await savePatient({ ...patientData, id: patientId, photoURL }, user.uid);
+          console.log("URL da foto salva no banco.");
         } catch (error) {
           console.error("Erro ao fazer upload da foto:", error);
           toast({
             title: "Aviso",
-            description: "Paciente cadastrado, mas houve erro ao fazer upload da foto.",
-            variant: "default",
+            description: "Paciente salvo, mas erro ao atualizar foto (verifique o console).",
           });
         }
       }
 
       toast({
-        title: "Paciente cadastrado!",
-        description: `${formData.name} foi cadastrado com sucesso.`,
+        title: editingPatient ? "Paciente atualizado!" : "Paciente cadastrado!",
+        description: `${formData.name} foi ${editingPatient ? 'atualizado' : 'criado'} com sucesso.`,
       });
 
-      // Recarregar lista de pacientes
       const patientsData = await getPatients(user.uid);
       setPatients(patientsData);
 
-      // Fechar dialog e resetar formulário
       setIsDialogOpen(false);
       resetForm();
     } catch (error: any) {
       console.error("Erro ao salvar paciente:", error);
-      
-      let errorMessage = "Não foi possível cadastrar o paciente. Tente novamente.";
-      
-      if (error?.message) {
-        errorMessage = error.message;
-      } else if (error?.code) {
-        if (error.code.includes("permission")) {
-          errorMessage = "Permissão negada. Verifique as regras do Realtime Database no Firebase Console.";
-        } else if (error.code.includes("database")) {
-          errorMessage = "Realtime Database não está configurado. Configure no Firebase Console.";
-        }
-      }
-      
       toast({
-        title: "Erro ao cadastrar paciente",
-        description: errorMessage,
+        title: "Erro ao salvar",
+        description: error.message || "Não foi possível salvar os dados.",
         variant: "destructive",
       });
     } finally {
@@ -277,7 +288,7 @@ export default function Patients() {
   const handleDeletePatient = async (patientId: string) => {
     if (!user) return;
 
-    if (!confirm("Tem certeza que deseja excluir este paciente?")) {
+    if (!confirm("Tem certeza que deseja excluir este paciente? Esta ação não pode ser desfeita.")) {
       return;
     }
 
@@ -288,9 +299,9 @@ export default function Patients() {
         description: "O paciente foi excluído com sucesso.",
       });
 
-      // Recarregar lista
       const patientsData = await getPatients(user.uid);
       setPatients(patientsData);
+      window.location.reload();
     } catch (error) {
       console.error("Erro ao deletar paciente:", error);
       toast({
@@ -314,7 +325,10 @@ export default function Patients() {
               Gerenciar cadastro e perfil dos pacientes
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm(); // Resetar ao fechar se não salvou
+          }}>
             <DialogTrigger asChild>
               <Button variant="neuro" onClick={resetForm}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -323,9 +337,11 @@ export default function Patients() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="font-display">Cadastrar Paciente</DialogTitle>
+                <DialogTitle className="font-display">
+                  {editingPatient ? "Editar Paciente" : "Cadastrar Paciente"}
+                </DialogTitle>
                 <DialogDescription>
-                  Preencha os dados do novo paciente
+                  {editingPatient ? "Atualize os dados do paciente" : "Preencha os dados do novo paciente"}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -461,10 +477,7 @@ export default function Patients() {
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setIsDialogOpen(false);
-                    resetForm();
-                  }}
+                  onClick={() => setIsDialogOpen(false)}
                   disabled={saving}
                 >
                   Cancelar
@@ -473,18 +486,91 @@ export default function Patients() {
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Cadastrando...
+                      Salvando...
                     </>
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      Cadastrar
+                      {editingPatient ? "Atualizar" : "Cadastrar"}
                     </>
                   )}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Dialog de Visualização de Perfil */}
+          <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <div className="flex items-center gap-4 mb-2">
+                  <Avatar className="w-16 h-16">
+                    <AvatarImage src={viewingPatient?.photoURL} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xl">
+                      {viewingPatient?.name?.[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <DialogTitle className="text-xl font-display">{viewingPatient?.name}</DialogTitle>
+                    <DialogDescription className="text-base text-foreground/80">
+                      {viewingPatient?.age} anos • {viewingPatient?.gender}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              {viewingPatient && (
+                <div className="grid gap-6 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wider">Condição</Label>
+                      <p className="font-medium">{viewingPatient.condition}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wider">Status</Label>
+                      <Badge variant="outline" className="bg-success/5 text-success border-success/20">
+                        Ativo
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-muted-foreground text-xs uppercase tracking-wider">Medicamentos Atuais</Label>
+                    {viewingPatient.currentMedications ? (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {viewingPatient.currentMedications.split(',').map((med, i) => (
+                          <Badge key={i} variant="secondary">{med.trim()}</Badge>
+                        ))}
+                      </div>
+                    ) : <p className="text-sm text-muted-foreground">-</p>}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-muted-foreground text-xs uppercase tracking-wider">Histórico Clínico</Label>
+                    <div className="p-3 bg-muted/30 rounded-lg text-sm leading-relaxed">
+                      {viewingPatient.clinicalHistory || "Sem histórico registrado."}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-muted-foreground text-xs uppercase tracking-wider">Alergias / Sensibilidades</Label>
+                    <p className="text-sm">{viewingPatient.allergies || "Nenhuma registrada."}</p>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Fechar</Button>
+                <Button variant="neuro" onClick={() => {
+                  setIsViewDialogOpen(false);
+                  if (viewingPatient) handleEditClick(viewingPatient);
+                }}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Editar Perfil
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </div>
 
         {/* Filters */}
@@ -504,7 +590,7 @@ export default function Patients() {
           </Button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards ... (mantido igual) */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div className="glass-card rounded-xl p-4">
             <p className="text-sm text-muted-foreground">Total de Pacientes</p>
@@ -559,7 +645,7 @@ export default function Patients() {
                 ) : (
                   filteredPatients.map((patient) => (
                     <TableRow key={patient.id} className="cursor-pointer">
-                      <TableCell>
+                      <TableCell onClick={() => handleViewClick(patient)}>
                         <div className="flex items-center gap-3">
                           <Avatar className="w-10 h-10">
                             <AvatarImage src={patient.photoURL} alt={patient.name} />
@@ -575,8 +661,8 @@ export default function Patients() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{patient.condition}</TableCell>
-                      <TableCell>
+                      <TableCell onClick={() => handleViewClick(patient)}>{patient.condition}</TableCell>
+                      <TableCell onClick={() => handleViewClick(patient)}>
                         {patient.currentMedications ? (
                           <div className="flex flex-wrap gap-1">
                             {patient.currentMedications.split(",").map((med, i) => (
@@ -610,11 +696,11 @@ export default function Patients() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewClick(patient)}>
                               <Eye className="w-4 h-4 mr-2" />
                               Ver Perfil
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditClick(patient)}>
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>

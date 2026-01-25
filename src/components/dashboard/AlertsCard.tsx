@@ -1,6 +1,7 @@
 import { AlertTriangle, TrendingDown, Clock, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface Alert {
   id: string;
@@ -16,6 +17,7 @@ interface AlertsCardProps {
 }
 
 export function AlertsCard({ alerts, className }: AlertsCardProps) {
+  const navigate = useNavigate();
   const typeStyles = {
     warning: {
       bg: "bg-warning/10",
@@ -69,6 +71,7 @@ export function AlertsCard({ alerts, className }: AlertsCardProps) {
                 styles.bg,
                 styles.border
               )}
+              onClick={() => navigate('/history')}
             >
               <div className="flex items-start gap-3">
                 <div className={cn("mt-0.5", styles.icon)}>
@@ -90,7 +93,7 @@ export function AlertsCard({ alerts, className }: AlertsCardProps) {
         })}
       </div>
 
-      <Button variant="ghost" className="w-full mt-4 text-primary">
+      <Button variant="ghost" className="w-full mt-4 text-primary" onClick={() => navigate('/history')}>
         Ver todos os alertas
         <ChevronRight className="w-4 h-4 ml-1" />
       </Button>

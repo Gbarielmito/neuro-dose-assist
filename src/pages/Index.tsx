@@ -1,84 +1,212 @@
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { LastDoseCard } from "@/components/dashboard/LastDoseCard";
-import { SubjectiveStateCard } from "@/components/dashboard/SubjectiveStateCard";
+
 import { AlertsCard } from "@/components/dashboard/AlertsCard";
 import { EfficacyChart } from "@/components/dashboard/EfficacyChart";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentPatients } from "@/components/dashboard/RecentPatients";
 import { Users, Pill, Activity, Brain } from "lucide-react";
-// import NeuroScene from "@/components/3d/NeuroScene"; // Removed due to crash
-
-// Mock data
-const mockAlerts = [
-  {
-    id: "1",
-    type: "danger" as const,
-    title: "Eficácia em Declínio",
-    description:
-      "Paciente João Silva apresenta queda de 15% na eficácia nos últimos 3 dias. Considerar ajuste de dosagem.",
-    time: "Há 2 horas",
-  },
-  {
-    id: "2",
-    type: "warning" as const,
-    title: "Horário Subótimo Detectado",
-    description:
-      "IA detectou padrão: doses às 14h têm 20% menos eficácia que às 8h.",
-    time: "Há 5 horas",
-  },
-  {
-    id: "3",
-    type: "info" as const,
-    title: "Novo Padrão Identificado",
-    description:
-      "Correlação positiva entre qualidade do sono e eficácia do medicamento.",
-    time: "Há 1 dia",
-  },
-];
-
-const mockChartData = [
-  { date: "Seg", efficacy: 72, dose: 50 },
-  { date: "Ter", efficacy: 78, dose: 50 },
-  { date: "Qua", efficacy: 85, dose: 55 },
-  { date: "Qui", efficacy: 82, dose: 55 },
-  { date: "Sex", efficacy: 88, dose: 60 },
-  { date: "Sáb", efficacy: 91, dose: 60 },
-  { date: "Dom", efficacy: 87, dose: 60 },
-];
-
-const mockPatients = [
-  {
-    id: "1",
-    name: "João Silva",
-    age: 45,
-    lastDose: "Hoje, 08:30",
-    medication: "Metilfenidato 20mg",
-    efficacy: 85,
-  },
-  {
-    id: "2",
-    name: "Maria Santos",
-    age: 32,
-    lastDose: "Hoje, 07:00",
-    medication: "Venlafaxina 75mg",
-    efficacy: 72,
-  },
-  {
-    id: "3",
-    name: "Pedro Oliveira",
-    age: 58,
-    lastDose: "Ontem, 22:00",
-    medication: "Quetiapina 25mg",
-    efficacy: 68,
-  },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { getPatients, Patient } from "@/lib/patients";
+import { getDoses, DoseRecord } from "@/lib/doses";
+import { getMedications } from "@/lib/medications"; // Import only getMedications
+import { format, subDays, isAfter } from "date-fns";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doses, setDoses] = useState<DoseRecord[]>([]);
+  const [medications, setMedications] = useState<any[]>([]); // simplified type for ease
+
+  // Computed stats
+  const [stats, setStats] = useState({
+    activePatients: 0,
+    activePatientsTrend: 0,
+    dosesLast7Days: 0,
+    dosesTrend: 0,
+    avgEfficacy: 0,
+    efficacyTrend: 0,
+    aiInferences: 0,
+    aiTrend: 0
+  });
+
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [recentPatientsFormatted, setRecentPatientsFormatted] = useState<any[]>([]);
+  const [lastDose, setLastDose] = useState<any>(null);
+  const [lastState, setLastState] = useState<any>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const [patientsData, dosesData, medicationsData] = await Promise.all([
+          getPatients(user.uid),
+          getDoses(user.uid),
+          getMedications(user.uid)
+        ]);
+
+        setPatients(patientsData || []);
+        setDoses(dosesData || []);
+        setMedications(medicationsData || []);
+
+        // Process Stats
+        const now = new Date();
+        const sevenDaysAgo = subDays(now, 7);
+        const fourteenDaysAgo = subDays(now, 14);
+
+        // Active Patients (mock trend for now as we don't track history of patient creation strictly for trend)
+        const activePatientsCount = patientsData.length;
+
+        // Doses Last 7 Days vs Previous 7 Days
+        const recentDoses = dosesData.filter(d => isAfter(new Date(d.timestamp), sevenDaysAgo));
+        const previousDoses = dosesData.filter(d => {
+          const date = new Date(d.timestamp);
+          return isAfter(date, fourteenDaysAgo) && !isAfter(date, sevenDaysAgo);
+        });
+
+        const doseTrend = previousDoses.length > 0
+          ? Math.round(((recentDoses.length - previousDoses.length) / previousDoses.length) * 100)
+          : 0;
+
+        // Avg Efficacy (Overall)
+        let totalEfficacy = 0;
+        let countEfficacy = 0;
+        dosesData.forEach(d => {
+          const eff = d.analysis?.efficacyPrediction || ((d.subjectiveState?.energy || 0) * 10);
+          if (eff) {
+            totalEfficacy += eff;
+            countEfficacy++;
+          }
+        });
+        const avgEfficacyVal = countEfficacy > 0 ? Math.round(totalEfficacy / countEfficacy) : 0;
+
+        // AI Inferences (Count doses with analysis)
+        const aiInferencesCount = dosesData.filter(d => d.analysis).length;
+
+        setStats({
+          activePatients: activePatientsCount,
+          activePatientsTrend: 3, // mock
+          dosesLast7Days: recentDoses.length,
+          dosesTrend: doseTrend,
+          avgEfficacy: avgEfficacyVal,
+          efficacyTrend: 2, // mock
+          aiInferences: aiInferencesCount,
+          aiTrend: 5 // mock
+        });
+
+        // Chart Data (Daily avg efficacy last 7 days)
+        const chart = [];
+        for (let i = 6; i >= 0; i--) {
+          const targetDate = subDays(now, i);
+          const dateStr = format(targetDate, 'dd/MM');
+          const dayDoses = dosesData.filter(d => format(new Date(d.timestamp), 'dd/MM') === dateStr);
+
+          let dayEff = 0;
+          let dayDoseAmount = 0;
+          if (dayDoses.length > 0) {
+            dayEff = dayDoses.reduce((acc, d) => acc + (d.analysis?.efficacyPrediction || ((d.subjectiveState?.energy || 0) * 10) || 0), 0) / dayDoses.length;
+            dayDoseAmount = dayDoses.reduce((acc, d) => acc + (parseInt(d.doseAmount) || 0), 0) / dayDoses.length;
+          }
+
+          chart.push({
+            date: dateStr, // e.g. "Seg" or date
+            efficacy: Math.round(dayEff),
+            dose: Math.round(dayDoseAmount)
+          });
+        }
+        setChartData(chart);
+
+        // Recent Patients List
+        // Map real patients to display format. Use last dose time if available.
+        const recentPats = patientsData.slice(0, 3).map(p => {
+          // Find last dose for this patient
+          const pDoses = dosesData.filter(d => d.patientId === p.id);
+          const lastPDose = pDoses.length > 0 ? pDoses[0] : null; // Doses are sorted desc by default per lib
+          const med = medicationsData.find(m => m.id === lastPDose?.medicationId);
+
+          return {
+            id: p.id,
+            name: p.name,
+            age: p.age || 0,
+            lastDose: lastPDose ? format(new Date(lastPDose.timestamp), "HH:mm") : "N/A",
+            medication: med ? `${med.name} ${lastPDose?.doseAmount}mg` : "Sem registro",
+            efficacy: lastPDose?.analysis?.efficacyPrediction || 0,
+            photoURL: p.photoURL
+          };
+        });
+        setRecentPatientsFormatted(recentPats);
+
+        // Last Dose Card & State
+        if (dosesData.length > 0) {
+          const latest = dosesData[0];
+          const med = medicationsData.find(m => m.id === latest.medicationId);
+          setLastDose({
+            medication: med ? med.name : "Desconhecido",
+            dose: `${latest.doseAmount}mg`,
+            time: format(new Date(latest.timestamp), "HH:mm"),
+            efficacy: latest.analysis?.efficacyPrediction || 0,
+            riskLevel: "low" // mock or derive from riskAssessment
+          });
+          setLastState(latest.subjectiveState);
+
+          // Generate simple alerts based on latest data
+          const newAlerts = [];
+          if (latest.subjectiveState?.mood < 4) {
+            newAlerts.push({
+              id: "alert-1",
+              type: "warning",
+              title: "Humor Baixo Detectado",
+              description: `Paciente relatou humor nível ${latest.subjectiveState.mood}. Monitorar.`,
+              time: "Recente"
+            });
+          }
+          if (latest.analysis?.efficacyPrediction && latest.analysis.efficacyPrediction < 60) {
+            newAlerts.push({
+              id: "alert-2",
+              type: "danger",
+              title: "Baixa Eficácia Estimada",
+              description: "Última dose teve eficácia inferior a 60%.",
+              time: "Recente"
+            });
+          }
+          if (newAlerts.length === 0) {
+            newAlerts.push({
+              id: "info-1",
+              type: "info",
+              title: "Monitoramento Ativo",
+              description: "Nenhum alerta crítico detectado nas últimas doses.",
+              time: "Agora"
+            });
+          }
+          setAlerts(newAlerts);
+        } else {
+          // Default alerts if no data
+          setAlerts([{ id: "0", type: "info", title: "Bem-vindo", description: "Registre sua primeira dose para ver alertas.", time: "Agora" }]);
+        }
+
+      } catch (error) {
+        console.error("Dashboard data load failed:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboardData();
+  }, [user]);
+
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header - Hero Section (CSS Version) */}
+        {/* Header - Hero Section */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 border border-white/10 shadow-xl group">
 
           {/* Animated Background Effects */}
@@ -122,41 +250,41 @@ export default function Dashboard() {
 
         {/* Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="opacity-0 animate-fade-up stagger-1">
+          <div className="animate-fade-up stagger-1">
             <MetricCard
               title="Pacientes Ativos"
-              value="24"
-              subtitle="3 novos esta semana"
+              value={stats.activePatients.toString()}
+              subtitle={stats.activePatientsTrend > 0 ? `${stats.activePatientsTrend} novos (est)` : "Sem novos"} // Mock trend for now
               icon={<Users className="w-6 h-6" />}
-              trend={{ value: 12, label: "vs. mês anterior" }}
+              trend={{ value: 12, label: "vs. mês anterior" }} // Mock trend
             />
           </div>
-          <div className="opacity-0 animate-fade-up stagger-2">
+          <div className="animate-fade-up stagger-2">
             <MetricCard
               title="Doses Registradas"
-              value="156"
+              value={stats.dosesLast7Days.toString()}
               subtitle="Últimos 7 dias"
               icon={<Pill className="w-6 h-6" />}
-              trend={{ value: 8, label: "vs. semana anterior" }}
+              trend={{ value: stats.dosesTrend, label: "vs. semana anterior" }}
               variant="success"
             />
           </div>
-          <div className="opacity-0 animate-fade-up stagger-3">
+          <div className="animate-fade-up stagger-3">
             <MetricCard
               title="Eficácia Média"
-              value="82%"
-              subtitle="Todos os pacientes"
+              value={`${stats.avgEfficacy}%`}
+              subtitle="Geral"
               icon={<Activity className="w-6 h-6" />}
-              trend={{ value: 5, label: "vs. mês anterior" }}
+              trend={{ value: 5, label: "estável" }} // Mock
             />
           </div>
-          <div className="opacity-0 animate-fade-up stagger-4">
+          <div className="animate-fade-up stagger-4">
             <MetricCard
               title="Inferências IA"
-              value="312"
-              subtitle="Este mês"
+              value={stats.aiInferences.toString()}
+              subtitle="Total processado"
               icon={<Brain className="w-6 h-6" />}
-              trend={{ value: -3, label: "tempo médio" }}
+              trend={{ value: stats.aiTrend, label: "crescente" }} // Mock
               variant="warning"
             />
           </div>
@@ -166,21 +294,29 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            <EfficacyChart data={mockChartData} />
-            <RecentPatients patients={mockPatients} />
+            <EfficacyChart data={chartData} />
+            <RecentPatients patients={recentPatientsFormatted} />
           </div>
 
           {/* Right Column */}
           <div className="space-y-6">
-            <LastDoseCard
-              medication="Metilfenidato"
-              dose="20mg"
-              time="08:30"
-              efficacy={85}
-              riskLevel="low"
-            />
-            <SubjectiveStateCard mood={4} energy={7} sleep={8} />
-            <AlertsCard alerts={mockAlerts} />
+            {lastDose ? (
+              <LastDoseCard
+                medication={lastDose.medication}
+                dose={lastDose.dose}
+                time={lastDose.time}
+                efficacy={lastDose.efficacy}
+                riskLevel={lastDose.riskLevel}
+              />
+            ) : (
+              <div className="p-6 rounded-2xl glass-card border border-border/50 text-center text-muted-foreground">
+                Nenhuma dose registrada ainda.
+              </div>
+            )}
+
+
+
+            <AlertsCard alerts={alerts} />
           </div>
         </div>
       </div>

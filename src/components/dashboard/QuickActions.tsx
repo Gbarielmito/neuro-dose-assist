@@ -15,7 +15,7 @@ export function QuickActions() {
       icon: Brain,
       label: "Consultar IA",
       description: "Recomendações",
-      href: "/ai",
+      href: "/dose",
       variant: "secondary" as const,
     },
     {

@@ -1,6 +1,6 @@
-import { ref, push, set, get, remove } from "firebase/database";
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { realtimeDb, storage } from "./firebase";
+import { ref, push, set, get, remove, update } from "firebase/database";
+// import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { realtimeDb } from "./firebase";
 
 export interface Patient {
   id?: string;
@@ -28,6 +28,48 @@ function removeUndefinedFields(obj: any): any {
   return cleaned;
 }
 
+// Helper para converter imagem para Base64 com redimensionamento simples
+async function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Redimensionar para max 300px
+        const maxSize = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxSize) {
+            height *= maxSize / width;
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width *= maxSize / height;
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Converter para JPEG com qualidade 0.7
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // Salvar paciente no Realtime Database
 export async function savePatient(patient: Patient, userId: string): Promise<string> {
   try {
@@ -42,16 +84,22 @@ export async function savePatient(patient: Patient, userId: string): Promise<str
         clinicalHistory: patient.clinicalHistory,
         allergies: patient.allergies,
         currentMedications: patient.currentMedications,
-        photoURL: patient.photoURL,
+        // photoURL não é atualizado aqui se for local_cache, apenas mantemos a referência
         updatedAt: new Date().toISOString(),
       });
-      await set(patientRef, updateData);
+
+      // Se houver photoURL, atualize-o
+      if (patient.photoURL) {
+        updateData.photoURL = patient.photoURL;
+      }
+
+      await update(patientRef, updateData);
       return patient.id;
     } else {
       // Criar novo paciente
       const patientsRef = ref(realtimeDb, `users/${userId}/patients`);
       const newPatientRef = push(patientsRef);
-      
+
       const patientData = removeUndefinedFields({
         name: patient.name,
         age: patient.age,
@@ -71,41 +119,47 @@ export async function savePatient(patient: Patient, userId: string): Promise<str
     }
   } catch (error: any) {
     console.error("Erro ao salvar paciente:", error);
-    
+
     // Melhorar mensagem de erro
     const errorCode = error?.code || "";
     const errorMessage = error?.message || "";
-    
+
     if (errorCode.includes("permission") || errorMessage.includes("permission")) {
       throw new Error("Permissão negada. Verifique as regras do Realtime Database no Firebase Console.");
     }
-    
+
     if (errorCode.includes("database") || errorMessage.includes("database")) {
       throw new Error("Realtime Database não está configurado. Configure no Firebase Console.");
     }
-    
+
     throw error;
   }
 }
 
-// Upload de foto do paciente
+// Upload de foto do paciente (versão LOCALSTORAGE)
 export async function uploadPatientPhoto(
   file: File,
   userId: string,
   patientId: string
 ): Promise<string> {
   try {
-    // Criar referência no Storage
-    const photoRef = storageRef(storage, `users/${userId}/patients/${patientId}/photo`);
-    
-    // Upload do arquivo
-    await uploadBytes(photoRef, file);
-    
-    // Obter URL de download
-    const downloadURL = await getDownloadURL(photoRef);
-    return downloadURL;
+    console.log("Processando imagem para LocalStorage...");
+    const base64Image = await compressImage(file);
+
+    // Salvar no LocalStorage
+    const storageKey = `p_img_${patientId}`;
+    try {
+      localStorage.setItem(storageKey, base64Image);
+      console.log("Imagem salva no LocalStorage:", storageKey);
+    } catch (e) {
+      console.error("Storage cheio ou erro:", e);
+      throw new Error("Limite de armazenamento local excedido. Tente uma imagem menor.");
+    }
+
+    // Retornar um marcador 'local_cache' para salvar no DB
+    return "local_cache";
   } catch (error) {
-    console.error("Erro ao fazer upload da foto:", error);
+    console.error("Erro ao salvar foto localmente:", error);
     throw error;
   }
 }
@@ -118,7 +172,7 @@ export async function updatePatient(
 ): Promise<void> {
   try {
     const patientRef = ref(realtimeDb, `users/${userId}/patients/${patientId}`);
-    
+
     const updateData = {
       ...patient,
       updatedAt: new Date().toISOString(),
@@ -139,34 +193,27 @@ export async function getPatients(userId: string): Promise<Patient[]> {
 
     if (snapshot.exists()) {
       const patientsData = snapshot.val();
-      return Object.keys(patientsData).map((key) => ({
-        id: key,
-        ...patientsData[key],
-      })) as Patient[];
+      const patients = Object.keys(patientsData).map((key) => {
+        const p = { id: key, ...patientsData[key] };
+
+        // Hidratar imagem do LocalStorage se necessário
+        if (p.photoURL === "local_cache") {
+          const cachedImg = localStorage.getItem(`p_img_${key}`);
+          if (cachedImg) {
+            p.photoURL = cachedImg;
+          } else {
+            p.photoURL = null; // Imagem não encontrada localmente
+          }
+        }
+        return p;
+      }) as Patient[];
+      return patients;
     }
 
-    // Não há pacientes ainda - isso é normal, não é um erro
     return [];
   } catch (error: any) {
-    // Verificar se é um erro de permissão ou configuração
-    const errorCode = error?.code || "";
-    const errorMessage = error?.message || "";
-    
-    // Se for erro de permissão ou database não configurado, retornar array vazio silenciosamente
-    if (
-      errorCode.includes("permission") ||
-      errorCode.includes("PERMISSION") ||
-      errorMessage.includes("permission") ||
-      errorCode.includes("database") ||
-      errorMessage.includes("database")
-    ) {
-      console.warn("Realtime Database não configurado ou sem permissões. Retornando lista vazia.");
-      return [];
-    }
-    
-    // Para outros erros, logar e lançar
-    console.error("Erro ao buscar pacientes:", error);
-    throw error;
+    console.warn("Erro ao buscar pacientes:", error);
+    return [];
   }
 }
 
@@ -180,10 +227,14 @@ export async function getPatientById(
     const snapshot = await get(patientRef);
 
     if (snapshot.exists()) {
-      return {
-        id: patientId,
-        ...snapshot.val(),
-      } as Patient;
+      const p = { id: patientId, ...snapshot.val() } as Patient;
+
+      // Hidratar imagem
+      if (p.photoURL === "local_cache") {
+        const cachedImg = localStorage.getItem(`p_img_${patientId}`);
+        if (cachedImg) p.photoURL = cachedImg;
+      }
+      return p;
     }
 
     return null;
@@ -199,14 +250,10 @@ export async function deletePatient(patientId: string, userId: string): Promise<
     const patientRef = ref(realtimeDb, `users/${userId}/patients/${patientId}`);
     await remove(patientRef);
 
-    // Deletar foto se existir
-    try {
-      const photoRef = storageRef(storage, `users/${userId}/patients/${patientId}/photo`);
-      await deleteObject(photoRef);
-    } catch (error) {
-      // Foto pode não existir, não é um erro crítico
-      console.warn("Foto não encontrada para deletar:", error);
-    }
+    // Remover do LocalStorage
+    localStorage.removeItem(`p_img_${patientId}`);
+    console.log("Removido do LocalStorage:", `p_img_${patientId}`);
+
   } catch (error) {
     console.error("Erro ao deletar paciente:", error);
     throw error;

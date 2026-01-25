@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,78 +30,24 @@ import {
   Clock,
   ChevronRight,
   Download,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useAuth } from "@/contexts/AuthContext";
+import { getDoses, DoseRecord } from "@/lib/doses";
+import { getPatients, Patient } from "@/lib/patients";
+import { getMedications, Medication } from "@/lib/medications";
+import { toast } from "@/hooks/use-toast";
 
-// Mock data
-const mockHistory = [
-  {
-    id: "1",
-    type: "dose",
-    patient: "João Silva",
-    medication: "Metilfenidato 20mg",
-    date: new Date(2024, 0, 15, 8, 30),
-    efficacy: 85,
-    details: "Dose matinal, paciente reportou boa concentração",
-  },
-  {
-    id: "2",
-    type: "symptom",
-    patient: "Maria Santos",
-    symptom: "Insônia leve",
-    date: new Date(2024, 0, 15, 22, 0),
-    intensity: 3,
-    details: "Dificuldade para iniciar o sono, durou cerca de 1 hora",
-  },
-  {
-    id: "3",
-    type: "recommendation",
-    patient: "Pedro Oliveira",
-    recommendation: "Ajuste de horário",
-    date: new Date(2024, 0, 14, 14, 0),
-    priority: "medium",
-    details: "IA sugere antecipar dose de Quetiapina para 20h",
-  },
-  {
-    id: "4",
-    type: "dose",
-    patient: "Ana Costa",
-    medication: "Sertralina 50mg",
-    date: new Date(2024, 0, 14, 7, 0),
-    efficacy: 91,
-    details: "Manutenção de dose, paciente estável",
-  },
-  {
-    id: "5",
-    type: "alert",
-    patient: "Carlos Ferreira",
-    alert: "Eficácia em declínio",
-    date: new Date(2024, 0, 13, 16, 30),
-    severity: "high",
-    details: "Queda de 15% na eficácia nos últimos 5 dias",
-  },
-  {
-    id: "6",
-    type: "dose",
-    patient: "João Silva",
-    medication: "Metilfenidato 20mg",
-    date: new Date(2024, 0, 13, 8, 45),
-    efficacy: 82,
-    details: "Dose matinal, leve sonolência reportada",
-  },
-  {
-    id: "7",
-    type: "recommendation",
-    patient: "Maria Santos",
-    recommendation: "Aumento de dose",
-    date: new Date(2024, 0, 12, 10, 0),
-    priority: "low",
-    details: "Considerar aumento de Venlafaxina para 112.5mg",
-  },
-];
+// Interface for enriched history item to display
+interface HistoryItem extends DoseRecord {
+  patientName: string;
+  medicationName: string;
+  displayType: 'dose' | 'symptom' | 'recommendation' | 'alert';
+}
 
 const typeConfig = {
   dose: {
@@ -125,16 +73,130 @@ const typeConfig = {
 };
 
 export default function History() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("all");
 
-  const filteredHistory = mockHistory.filter((item) => {
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [patients, setPatients] = useState<Patient[]>([]);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!user) return;
+      try {
+        setLoading(true);
+        const [dosesData, patientsData, medicationsData] = await Promise.all([
+          getDoses(user.uid),
+          getPatients(user.uid),
+          getMedications(user.uid)
+        ]);
+
+        setPatients(patientsData);
+
+        // Process and enrich data
+        // For now, we मैप each DOSE to a HistoryItem. 
+        // In a more complex version, we could split one Dose into multiple items (one for Alert, one for Recommendation)
+        // providing a "Timeline" view. 
+        // Here we will just map Doses, but filtering will change what we emphasize.
+
+        const enrichedItems: HistoryItem[] = dosesData.map(dose => {
+          const patient = patientsData.find(p => p.id === dose.patientId);
+          const medication = medicationsData.find(m => m.id === dose.medicationId);
+
+          return {
+            ...dose,
+            patientName: patient ? patient.name : 'Paciente Removido',
+            medicationName: medication ? medication.name : 'Medicamento Removido',
+            displayType: 'dose' // Default
+          };
+        });
+
+        setHistoryItems(enrichedItems);
+
+      } catch (error) {
+        console.error("Error fetching history:", error);
+        toast({
+          title: "Erro ao carregar histórico",
+          description: "Não foi possível buscar os dados.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [user]);
+
+  // Handle Export
+  const handleExport = () => {
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(18);
+    doc.text("Neuro Dose Assist - Histórico de Doses", 14, 22);
+    doc.setFontSize(10);
+    doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 30);
+
+    // Prepare table data
+    const tableData = historyItems.map((item) => {
+      const dateStr = format(new Date(item.timestamp), "dd/MM/yyyy HH:mm");
+      const subjective = `Mood: ${item.subjectiveState.mood}/5 | Energia: ${item.subjectiveState.energy}/5 | Sono: ${item.subjectiveState.sleep}/5`;
+      const analysis = `Rec: ${item.analysis.recommendation}\nEficácia Previsto: ${item.analysis.efficacyPrediction}%`;
+      const details = item.subjectiveState.effects || "Sem efeitos colaterais relatados";
+
+      return [
+        dateStr,
+        item.patientName,
+        item.medicationName,
+        `${item.doseAmount}mg`,
+        `${subjective}\n${details}\n\n${analysis}`
+      ];
+    });
+
+    autoTable(doc, {
+      head: [["Data/Hora", "Paciente", "Medicamento", "Dose", "Detalhes e Análise"]],
+      body: tableData,
+      startY: 35,
+      headStyles: { fillColor: [66, 153, 225] },
+      styles: { fontSize: 8, cellPadding: 3 },
+      columnStyles: {
+        4: { cellWidth: 80 }
+      }
+    });
+
+    // Save
+    doc.save(`neuro-dose-history-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+
+    toast({
+      title: "Exportação concluída",
+      description: "O PDF foi baixado com sucesso."
+    });
+  };
+
+  const filteredHistory = historyItems.filter((item) => {
     const matchesSearch =
-      item.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.details.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = activeTab === "all" || item.type === activeTab;
-    return matchesSearch && matchesType;
+      item.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.medicationName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.analysis?.recommendation || "").toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesDate = date ? new Date(item.timestamp).toDateString() === date.toDateString() : true;
+
+    // Tab logic: For 'dose', show everything. 
+    // For 'symptom', show items where subjective state has significant data (e.g. low mood/energy or effects text)
+    // For 'recommendation', show items where recommendation is not empty (always true for current logic, maybe filter by "significant" changes?)
+    // For 'alert', show items with risks.
+    let matchesType = true;
+    if (activeTab === 'symptom') {
+      matchesType = !!item.subjectiveState.effects || item.subjectiveState.mood <= 3 || item.subjectiveState.sleep <= 4;
+    } else if (activeTab === 'recommendation') {
+      matchesType = !!item.analysis.recommendation;
+    } else if (activeTab === 'alert') {
+      matchesType = item.analysis.riskAssessment && item.analysis.riskAssessment.length > 0 && item.analysis.riskAssessment.some(r => r.level !== 'Baixo');
+    }
+
+    return matchesSearch && matchesDate && matchesType;
   });
 
   return (
@@ -150,9 +212,9 @@ export default function History() {
               Registro completo de doses, sintomas e recomendações
             </p>
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport} disabled={historyItems.length === 0}>
             <Download className="w-4 h-4 mr-2" />
-            Exportar
+            Exportar PDF
           </Button>
         </div>
 
@@ -183,17 +245,8 @@ export default function History() {
               />
             </PopoverContent>
           </Popover>
-          <Select>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Paciente" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="joao">João Silva</SelectItem>
-              <SelectItem value="maria">Maria Santos</SelectItem>
-              <SelectItem value="pedro">Pedro Oliveira</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Note: Patient filter could be implemented here, currently just visual placeholder in original design, 
+              but since we have search, let's keep it simple or implement fully later. For now, search covers names. */}
         </div>
 
         {/* Tabs */}
@@ -220,94 +273,87 @@ export default function History() {
 
           <TabsContent value={activeTab} className="mt-6">
             <div className="space-y-4">
-              {filteredHistory.map((item) => {
-                const config = typeConfig[item.type as keyof typeof typeConfig];
-                const Icon = config.icon;
+              {loading ? (
+                <div className="flex justify-center p-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : filteredHistory.length === 0 ? (
+                <div className="text-center p-12 text-muted-foreground">
+                  Nenhum registro encontrado.
+                </div>
+              ) : (
+                filteredHistory.map((item) => {
+                  // Determine icon/style based on current tab or content
+                  const typeKey = activeTab === 'all' ? 'dose' : activeTab as keyof typeof typeConfig;
+                  const config = typeConfig[typeKey] || typeConfig['dose'];
+                  const Icon = config.icon;
 
-                return (
-                  <div
-                    key={item.id}
-                    className="glass-card rounded-xl p-4 hover:shadow-md transition-all cursor-pointer"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                          config.color.split(" ")[0]
-                        )}
-                      >
-                        <Icon className={cn("w-5 h-5", config.color.split(" ")[1])} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className={cn("text-xs", config.color)}>
-                            {config.label}
-                          </Badge>
-                          <span className="text-sm font-medium">{item.patient}</span>
+                  return (
+                    <div
+                      key={item.id}
+                      className="glass-card rounded-xl p-4 hover:shadow-md transition-all cursor-pointer"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                            config.color.split(" ")[0]
+                          )}
+                        >
+                          <Icon className={cn("w-5 h-5", config.color.split(" ")[1])} />
                         </div>
 
-                        <p className="font-medium">
-                          {item.type === "dose" && (item as any).medication}
-                          {item.type === "symptom" && (item as any).symptom}
-                          {item.type === "recommendation" && (item as any).recommendation}
-                          {item.type === "alert" && (item as any).alert}
-                        </p>
-
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                          {item.details}
-                        </p>
-
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" />
-                            {format(item.date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className={cn("text-xs", config.color)}>
+                              {config.label}
+                            </Badge>
+                            <span className="text-sm font-medium">{item.patientName}</span>
+                            <span className="text-xs text-muted-foreground">• {format(new Date(item.timestamp), "HH:mm")}</span>
                           </div>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
-                        {item.type === "dose" && (
-                          <EfficacyRing value={(item as any).efficacy} size="sm" showLabel={false} />
-                        )}
-                        {item.type === "symptom" && (
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-warning">{(item as any).intensity}/5</p>
-                            <p className="text-xs text-muted-foreground">Intensidade</p>
-                          </div>
-                        )}
-                        {item.type === "recommendation" && (
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              (item as any).priority === "high"
-                                ? "bg-destructive/10 text-destructive border-destructive/20"
-                                : (item as any).priority === "medium"
-                                ? "bg-warning/10 text-warning border-warning/20"
-                                : "bg-muted text-muted-foreground"
+                          <p className="font-medium">
+                            {item.medicationName} {item.doseAmount}mg
+                          </p>
+
+                          {/* Display subtle details based on available data */}
+                          <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                            {item.subjectiveState.effects && (
+                              <p className="line-clamp-2">" {item.subjectiveState.effects} "</p>
                             )}
-                          >
-                            {(item as any).priority === "high"
-                              ? "Alta"
-                              : (item as any).priority === "medium"
-                              ? "Média"
-                              : "Baixa"}
-                          </Badge>
-                        )}
-                        {item.type === "alert" && (
-                          <Badge
-                            variant="outline"
-                            className="bg-destructive/10 text-destructive border-destructive/20"
-                          >
-                            {(item as any).severity === "high" ? "Crítico" : "Atenção"}
-                          </Badge>
-                        )}
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            <p className="text-xs">
+                              Recomendação: {item.analysis.recommendation}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {format(new Date(item.timestamp), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          {/* Always show efficacy ring */}
+                          <EfficacyRing value={item.analysis.efficacyPrediction} size="sm" showLabel={false} />
+
+                          {/* Show Risk Badge if High/Medium Risk exists */}
+                          {item.analysis.riskAssessment.some(r => r.level !== 'Baixo') && (
+                            <Badge
+                              variant="outline"
+                              className="bg-warning/10 text-warning border-warning/20"
+                            >
+                              Risco Identificado
+                            </Badge>
+                          )}
+                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </TabsContent>
         </Tabs>

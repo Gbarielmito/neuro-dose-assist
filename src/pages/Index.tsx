@@ -7,6 +7,7 @@ import { EfficacyChart } from "@/components/dashboard/EfficacyChart";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentPatients } from "@/components/dashboard/RecentPatients";
 import { Users, Pill, Activity, Brain } from "lucide-react";
+// import NeuroScene from "@/components/3d/NeuroScene"; // Removed due to crash
 
 // Mock data
 const mockAlerts = [
@@ -77,21 +78,42 @@ export default function Dashboard() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold">
-              Dashboard
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Visão geral do sistema de apoio à decisão clínica
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="status-dot status-dot-success" />
-            <span>Sistema operacional</span>
-            <span className="mx-2">•</span>
-            <span>Última atualização: agora</span>
+        {/* Header - Hero Section (CSS Version) */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 border border-white/10 shadow-xl group">
+
+          {/* Animated Background Effects */}
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 mix-blend-overlay"></div>
+
+          {/* Floating Orbs */}
+          <div className="absolute top-[-20%] left-[-10%] w-64 h-64 bg-purple-500/30 rounded-full blur-3xl animate-pulse delay-0 transition-transform duration-1000 group-hover:scale-110"></div>
+          <div className="absolute bottom-[-20%] right-[-10%] w-72 h-72 bg-blue-500/30 rounded-full blur-3xl animate-pulse delay-700 transition-transform duration-1000 group-hover:scale-110"></div>
+          <div className="absolute top-[20%] right-[30%] w-40 h-40 bg-teal-500/20 rounded-full blur-2xl animate-pulse delay-1000"></div>
+
+          <div className="relative z-10 p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-3 w-fit">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                </span>
+                <span className="text-xs font-medium text-teal-100 uppercase tracking-wider">IA Ativa</span>
+              </div>
+
+              <h1 className="font-display text-3xl sm:text-4xl font-bold text-white tracking-tight drop-shadow-sm">
+                Neuro Dose <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-200 to-blue-200">Assist</span>
+              </h1>
+              <p className="text-blue-100/80 mt-2 text-lg max-w-lg leading-relaxed">
+                Sistema inteligente de monitoramento e apoio à decisão clínica.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-blue-100 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10 transition-colors hover:bg-white/10">
+                <Activity className="w-4 h-4 text-teal-300" />
+                <span>Status: Otimizado</span>
+              </div>
+              <p className="text-xs text-blue-200/60">Última sinc: Agora mesmo</p>
+            </div>
           </div>
         </div>
 

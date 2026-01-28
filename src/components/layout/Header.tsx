@@ -1,4 +1,4 @@
-import { Bell, User, LogOut, Mail } from "lucide-react";
+import { Bell, User, LogOut, Mail, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -12,7 +12,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
 
   const getUserInitials = () => {
@@ -31,13 +35,29 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-background/80 backdrop-blur-xl border-b border-border px-6 flex items-center justify-between">
-      {/* Search */}
-      {/* Search - Removed */}
+    <header className="sticky top-0 z-30 h-16 bg-background/80 backdrop-blur-xl border-b border-border px-4 sm:px-6 flex items-center justify-between">
+      {/* Mobile menu button */}
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={onMenuClick}
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+
+        {/* Logo for mobile */}
+        <span className="lg:hidden font-display font-bold text-lg bg-clip-text text-transparent bg-neuro-gradient">
+          NeuroDose
+        </span>
+      </div>
+
+      {/* Spacer */}
       <div className="flex-1" />
 
       {/* Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="w-5 h-5" />

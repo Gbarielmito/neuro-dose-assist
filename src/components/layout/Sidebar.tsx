@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,15 +30,33 @@ const secondaryNavigation = [
   { name: "Configurações", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+
+  const handleNavClick = () => {
+    // Close sidebar on mobile after navigation
+    if (onClose && window.innerWidth < 1024) {
+      onClose();
+    }
+  };
 
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col",
-        collapsed ? "w-20" : "w-64"
+        "fixed left-0 top-0 z-50 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col",
+        // Mobile: slide in/out
+        "lg:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full",
+        // Desktop: collapsible width
+        collapsed ? "lg:w-20" : "lg:w-64",
+        // Mobile: full width when open
+        "w-72"
       )}
     >
       {/* Logo */}
@@ -47,7 +66,7 @@ export function Sidebar() {
             <Brain className="w-6 h-6 text-primary-foreground" />
           </div>
           {!collapsed && (
-            <div className="flex flex-col">
+            <div className="flex flex-col lg:flex">
               <span className="font-display font-bold text-lg text-sidebar-foreground">
                 NeuroDose
               </span>
@@ -57,6 +76,14 @@ export function Sidebar() {
             </div>
           )}
         </div>
+
+        {/* Mobile close button */}
+        <button
+          onClick={onClose}
+          className="lg:hidden p-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -67,6 +94,7 @@ export function Sidebar() {
             <NavLink
               key={item.name}
               to={item.href}
+              onClick={handleNavClick}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                 isActive
@@ -75,7 +103,8 @@ export function Sidebar() {
               )}
             >
               <item.icon className="w-5 h-5 shrink-0" />
-              {!collapsed && <span>{item.name}</span>}
+              {!collapsed && <span className="lg:inline">{item.name}</span>}
+              {collapsed && <span className="lg:hidden">{item.name}</span>}
             </NavLink>
           );
         })}
@@ -87,6 +116,7 @@ export function Sidebar() {
               <NavLink
                 key={item.name}
                 to={item.href}
+                onClick={handleNavClick}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                   isActive
@@ -95,7 +125,8 @@ export function Sidebar() {
                 )}
               >
                 <item.icon className="w-5 h-5 shrink-0" />
-                {!collapsed && <span>{item.name}</span>}
+                {!collapsed && <span className="lg:inline">{item.name}</span>}
+                {collapsed && <span className="lg:hidden">{item.name}</span>}
               </NavLink>
             );
           })}
@@ -108,18 +139,19 @@ export function Sidebar() {
           variant="ghost"
           className={cn(
             "w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-            collapsed ? "justify-center" : "justify-start"
+            collapsed ? "lg:justify-center justify-start" : "justify-start"
           )}
         >
           <LogOut className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="ml-3">Sair</span>}
+          {!collapsed && <span className="ml-3 lg:inline">Sair</span>}
+          {collapsed && <span className="ml-3 lg:hidden">Sair</span>}
         </Button>
       </div>
 
-      {/* Collapse Toggle */}
+      {/* Collapse Toggle - Desktop only */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-md"
+        className="hidden lg:flex absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border items-center justify-center text-muted-foreground hover:text-foreground transition-colors shadow-md"
       >
         {collapsed ? (
           <ChevronRight className="w-4 h-4" />

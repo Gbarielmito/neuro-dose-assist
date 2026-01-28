@@ -3,33 +3,33 @@
 @tailwind utilities;
 
 /* NeuroDose Design System - Medical Decision Support Platform
-   All colors in HSL for proper theming
+   Professional, refined color palette with responsive utilities
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    /* Core brand colors - Medical teal palette */
-    --background: 200 20% 98%;
-    --foreground: 210 40% 12%;
+    /* Core brand colors - Refined medical teal palette */
+    --background: 210 25% 98%;
+    --foreground: 220 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 210 40% 12%;
+    --card-foreground: 220 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 40% 12%;
+    --popover-foreground: 220 25% 12%;
 
-    /* Primary - Deep medical teal */
-    --primary: 185 60% 35%;
+    /* Primary - Deep teal with cyan undertones */
+    --primary: 175 55% 38%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Soft lavender (neuro connection) */
-    --secondary: 260 40% 96%;
-    --secondary-foreground: 260 30% 30%;
+    /* Secondary - Soft violet for accents */
+    --secondary: 250 35% 96%;
+    --secondary-foreground: 250 25% 30%;
 
-    --muted: 200 20% 94%;
-    --muted-foreground: 210 15% 45%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 15% 50%;
 
     /* Accent - Warm amber for highlights */
     --accent: 38 95% 55%;
@@ -38,9 +38,9 @@
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 88%;
-    --input: 200 20% 88%;
-    --ring: 185 60% 35%;
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 175 55% 38%;
 
     --radius: 0.75rem;
 
@@ -54,46 +54,46 @@
     --info: 210 100% 55%;
     --info-foreground: 0 0% 100%;
 
-    /* Neuro gradient colors */
-    --gradient-start: 185 60% 35%;
-    --gradient-mid: 200 70% 45%;
-    --gradient-end: 260 50% 55%;
+    /* Gradient colors */
+    --gradient-start: 175 55% 38%;
+    --gradient-mid: 195 65% 45%;
+    --gradient-end: 250 45% 55%;
 
     /* Chart colors */
     --chart-efficacy: 158 64% 52%;
-    --chart-dose: 185 60% 45%;
-    --chart-mood: 260 50% 60%;
+    --chart-dose: 175 55% 45%;
+    --chart-mood: 250 45% 60%;
     --chart-risk: 0 72% 55%;
 
-    /* Sidebar */
-    --sidebar-background: 200 25% 12%;
-    --sidebar-foreground: 200 15% 90%;
-    --sidebar-primary: 185 60% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 200 25% 18%;
-    --sidebar-accent-foreground: 200 15% 90%;
-    --sidebar-border: 200 20% 20%;
-    --sidebar-ring: 185 60% 55%;
+    /* Sidebar - Dark slate theme */
+    --sidebar-background: 220 25% 10%;
+    --sidebar-foreground: 220 15% 90%;
+    --sidebar-primary: 175 55% 50%;
+    --sidebar-primary-foreground: 220 25% 10%;
+    --sidebar-accent: 220 25% 16%;
+    --sidebar-accent-foreground: 220 15% 90%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 175 55% 50%;
   }
 
   .dark {
-    --background: 210 40% 8%;
-    --foreground: 200 15% 95%;
+    --background: 220 30% 7%;
+    --foreground: 220 15% 95%;
 
-    --card: 210 35% 12%;
-    --card-foreground: 200 15% 95%;
+    --card: 220 25% 10%;
+    --card-foreground: 220 15% 95%;
 
-    --popover: 210 35% 12%;
-    --popover-foreground: 200 15% 95%;
+    --popover: 220 25% 10%;
+    --popover-foreground: 220 15% 95%;
 
-    --primary: 185 65% 50%;
-    --primary-foreground: 210 40% 8%;
+    --primary: 175 60% 48%;
+    --primary-foreground: 220 30% 7%;
 
-    --secondary: 260 25% 18%;
-    --secondary-foreground: 260 30% 85%;
+    --secondary: 250 20% 16%;
+    --secondary-foreground: 250 25% 85%;
 
-    --muted: 210 30% 18%;
-    --muted-foreground: 210 15% 65%;
+    --muted: 220 25% 15%;
+    --muted-foreground: 220 15% 60%;
 
     --accent: 38 90% 50%;
     --accent-foreground: 38 100% 10%;
@@ -101,22 +101,22 @@
     --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 30% 22%;
-    --input: 210 30% 22%;
-    --ring: 185 65% 50%;
+    --border: 220 25% 18%;
+    --input: 220 25% 18%;
+    --ring: 175 60% 48%;
 
     --success: 158 60% 48%;
     --warning: 38 90% 50%;
     --info: 210 95% 60%;
 
-    --sidebar-background: 210 40% 6%;
-    --sidebar-foreground: 200 15% 90%;
-    --sidebar-primary: 185 65% 50%;
-    --sidebar-primary-foreground: 210 40% 8%;
-    --sidebar-accent: 210 35% 14%;
-    --sidebar-accent-foreground: 200 15% 90%;
-    --sidebar-border: 210 30% 18%;
-    --sidebar-ring: 185 65% 50%;
+    --sidebar-background: 220 30% 5%;
+    --sidebar-foreground: 220 15% 90%;
+    --sidebar-primary: 175 60% 48%;
+    --sidebar-primary-foreground: 220 30% 5%;
+    --sidebar-accent: 220 25% 12%;
+    --sidebar-accent-foreground: 220 15% 90%;
+    --sidebar-border: 220 25% 14%;
+    --sidebar-ring: 175 60% 48%;
   }
 }
 
@@ -125,13 +125,20 @@
     @apply border-border;
   }
 
+  html {
+    @apply scroll-smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    @apply tracking-tight;
   }
 }
 
@@ -157,21 +164,29 @@
 
   /* Glass effect for cards */
   .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+    @apply bg-card/95 backdrop-blur-xl border border-border/50;
     box-shadow: 
-      0 4px 6px -1px hsl(var(--primary) / 0.05),
-      0 2px 4px -2px hsl(var(--primary) / 0.05),
-      inset 0 1px 0 hsl(0 0% 100% / 0.1);
+      0 4px 6px -1px hsl(var(--primary) / 0.03),
+      0 2px 4px -2px hsl(var(--primary) / 0.03),
+      inset 0 1px 0 hsl(0 0% 100% / 0.05);
   }
 
-  /* Metric card glow */
+  .dark .glass-card {
+    @apply bg-card/80;
+    box-shadow: 
+      0 4px 6px -1px hsl(0 0% 0% / 0.2),
+      0 2px 4px -2px hsl(0 0% 0% / 0.1),
+      inset 0 1px 0 hsl(0 0% 100% / 0.03);
+  }
+
+  /* Metric card hover effect */
   .metric-card {
     @apply relative overflow-hidden rounded-xl bg-card border border-border/50 p-6 transition-all duration-300;
-    box-shadow: 0 4px 20px -4px hsl(var(--primary) / 0.08);
+    box-shadow: 0 4px 20px -4px hsl(var(--primary) / 0.06);
   }
 
   .metric-card:hover {
-    box-shadow: 0 8px 30px -4px hsl(var(--primary) / 0.15);
+    box-shadow: 0 8px 30px -4px hsl(var(--primary) / 0.12);
     transform: translateY(-2px);
   }
 
@@ -182,12 +197,13 @@
 
   /* Status indicators */
   .status-dot {
-    @apply w-2.5 h-2.5 rounded-full animate-pulse;
+    @apply w-2.5 h-2.5 rounded-full;
   }
 
   .status-dot-success {
     @apply bg-success;
     box-shadow: 0 0 8px hsl(var(--success) / 0.6);
+    animation: pulse-glow 2s ease-in-out infinite;
   }
 
   .status-dot-warning {
@@ -209,7 +225,18 @@
     transform: rotate(-90deg);
   }
 
-  /* Subtle pulse animation for live data */
+  /* Animations */
+  @keyframes pulse-glow {
+    0%, 100% { 
+      opacity: 1;
+      box-shadow: 0 0 8px hsl(var(--success) / 0.6);
+    }
+    50% { 
+      opacity: 0.8;
+      box-shadow: 0 0 12px hsl(var(--success) / 0.4);
+    }
+  }
+
   @keyframes subtle-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
@@ -233,11 +260,72 @@
 
   .animate-fade-up {
     animation: fade-up 0.5s ease-out forwards;
+    opacity: 0;
   }
 
   /* Stagger animation delays */
-  .stagger-1 { animation-delay: 0.1s; }
-  .stagger-2 { animation-delay: 0.2s; }
-  .stagger-3 { animation-delay: 0.3s; }
-  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+}
+
+/* Custom scrollbar */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  /* Safe area for mobile */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  /* Touch improvements */
+  .touch-action-pan-y {
+    touch-action: pan-y;
+  }
+
+  .touch-action-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Hide on mobile/show on desktop utilities */
+  @screen xs {
+    .xs\:block { display: block; }
+    .xs\:hidden { display: none; }
+  }
+}
+
+/* Extra small breakpoint */
+@media (min-width: 475px) {
+  .xs\:block { display: block; }
+  .xs\:flex { display: flex; }
+  .xs\:hidden { display: none; }
+  .xs\:inline { display: inline; }
 }

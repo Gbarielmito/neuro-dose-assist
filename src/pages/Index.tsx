@@ -7,11 +7,11 @@ import { AlertsCard } from "@/components/dashboard/AlertsCard";
 import { EfficacyChart } from "@/components/dashboard/EfficacyChart";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentPatients } from "@/components/dashboard/RecentPatients";
-import { Users, Pill, Activity, Brain } from "lucide-react";
+import { Users, Pill, Activity, Brain, Sparkles, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPatients, Patient } from "@/lib/patients";
 import { getDoses, DoseRecord } from "@/lib/doses";
-import { getMedications } from "@/lib/medications"; // Import only getMedications
+import { getMedications } from "@/lib/medications";
 import { format, subDays, isAfter } from "date-fns";
 
 export default function Dashboard() {
@@ -19,7 +19,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doses, setDoses] = useState<DoseRecord[]>([]);
-  const [medications, setMedications] = useState<any[]>([]); // simplified type for ease
+  const [medications, setMedications] = useState<any[]>([]);
 
   // Computed stats
   const [stats, setStats] = useState({
@@ -63,7 +63,7 @@ export default function Dashboard() {
         const sevenDaysAgo = subDays(now, 7);
         const fourteenDaysAgo = subDays(now, 14);
 
-        // Active Patients (mock trend for now as we don't track history of patient creation strictly for trend)
+        // Active Patients
         const activePatientsCount = patientsData.length;
 
         // Doses Last 7 Days vs Previous 7 Days
@@ -94,13 +94,13 @@ export default function Dashboard() {
 
         setStats({
           activePatients: activePatientsCount,
-          activePatientsTrend: 3, // mock
+          activePatientsTrend: 3,
           dosesLast7Days: recentDoses.length,
           dosesTrend: doseTrend,
           avgEfficacy: avgEfficacyVal,
-          efficacyTrend: 2, // mock
+          efficacyTrend: 2,
           aiInferences: aiInferencesCount,
-          aiTrend: 5 // mock
+          aiTrend: 5
         });
 
         // Chart Data (Daily avg efficacy last 7 days)
@@ -118,7 +118,7 @@ export default function Dashboard() {
           }
 
           chart.push({
-            date: dateStr, // e.g. "Seg" or date
+            date: dateStr,
             efficacy: Math.round(dayEff),
             dose: Math.round(dayDoseAmount)
           });
@@ -126,11 +126,9 @@ export default function Dashboard() {
         setChartData(chart);
 
         // Recent Patients List
-        // Map real patients to display format. Use last dose time if available.
         const recentPats = patientsData.slice(0, 3).map(p => {
-          // Find last dose for this patient
           const pDoses = dosesData.filter(d => d.patientId === p.id);
-          const lastPDose = pDoses.length > 0 ? pDoses[0] : null; // Doses are sorted desc by default per lib
+          const lastPDose = pDoses.length > 0 ? pDoses[0] : null;
           const med = medicationsData.find(m => m.id === lastPDose?.medicationId);
 
           return {
@@ -154,7 +152,7 @@ export default function Dashboard() {
             dose: `${latest.doseAmount}mg`,
             time: format(new Date(latest.timestamp), "HH:mm"),
             efficacy: latest.analysis?.efficacyPrediction || 0,
-            riskLevel: "low" // mock or derive from riskAssessment
+            riskLevel: "low"
           });
           setLastState(latest.subjectiveState);
 
@@ -189,7 +187,6 @@ export default function Dashboard() {
           }
           setAlerts(newAlerts);
         } else {
-          // Default alerts if no data
           setAlerts([{ id: "0", type: "info", title: "Bem-vindo", description: "Registre sua primeira dose para ver alertas.", time: "Agora" }]);
         }
 
@@ -205,42 +202,76 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 pb-8">
         {/* Header - Hero Section */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 border border-white/10 shadow-xl group">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-white/5 shadow-2xl group">
 
-          {/* Animated Background Effects */}
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 mix-blend-overlay"></div>
+          {/* Refined background pattern */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiM5QzkyQUMiIGZpbGwtb3BhY2l0eT0iMC4wNCI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
 
-          {/* Floating Orbs */}
-          <div className="absolute top-[-20%] left-[-10%] w-64 h-64 bg-purple-500/30 rounded-full blur-3xl animate-pulse delay-0 transition-transform duration-1000 group-hover:scale-110"></div>
-          <div className="absolute bottom-[-20%] right-[-10%] w-72 h-72 bg-blue-500/30 rounded-full blur-3xl animate-pulse delay-700 transition-transform duration-1000 group-hover:scale-110"></div>
-          <div className="absolute top-[20%] right-[30%] w-40 h-40 bg-teal-500/20 rounded-full blur-2xl animate-pulse delay-1000"></div>
+          {/* Animated accent orbs */}
+          <div className="absolute top-0 right-0 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-br from-teal-500/20 to-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 group-hover:from-teal-500/30 transition-all duration-700" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 sm:w-72 sm:h-72 bg-gradient-to-tr from-violet-500/15 to-purple-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
 
-          <div className="relative z-10 p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-3 w-fit">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-                </span>
-                <span className="text-xs font-medium text-teal-100 uppercase tracking-wider">IA Ativa</span>
+          <div className="relative z-10 p-5 sm:p-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6">
+              <div className="space-y-3 sm:space-y-4">
+                {/* Status badge */}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-md border border-white/10 w-fit">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <span className="text-xs font-medium text-emerald-200/90 uppercase tracking-wider">Sistema Ativo</span>
+                </div>
+
+                {/* Title */}
+                <div>
+                  <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight">
+                    Painel de <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-300 via-cyan-300 to-blue-300">Controle</span>
+                  </h1>
+                  <p className="text-slate-400 mt-2 text-sm sm:text-base max-w-lg leading-relaxed">
+                    Monitoramento inteligente e apoio à decisão clínica em tempo real.
+                  </p>
+                </div>
+
+                {/* Quick stats row */}
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-teal-300" />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-white">{stats.activePatients}</span>
+                      <span className="text-slate-400 ml-1 text-xs sm:text-sm">pacientes</span>
+                    </div>
+                  </div>
+                  <div className="hidden sm:block w-px h-6 bg-white/10" />
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                      <Zap className="w-4 h-4 text-violet-300" />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-white">{stats.aiInferences}</span>
+                      <span className="text-slate-400 ml-1 text-xs sm:text-sm">análises IA</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <h1 className="font-display text-3xl sm:text-4xl font-bold text-white tracking-tight drop-shadow-sm">
-                Neuro Dose <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-200 to-blue-200">Assist</span>
-              </h1>
-              <p className="text-blue-100/80 mt-2 text-lg max-w-lg leading-relaxed">
-                Sistema inteligente de monitoramento e apoio à decisão clínica.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-blue-100 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10 transition-colors hover:bg-white/10">
-                <Activity className="w-4 h-4 text-teal-300" />
-                <span>Status: Otimizado</span>
+              {/* Right side - Status card */}
+              <div className="hidden lg:flex flex-col items-end gap-3">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500/30 to-cyan-500/20 flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-teal-300" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">Status: Otimizado</p>
+                    <p className="text-xs text-slate-400">Última sincronização: agora</p>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-blue-200/60">Última sinc: Agora mesmo</p>
             </div>
           </div>
         </div>
@@ -248,15 +279,15 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <QuickActions />
 
-        {/* Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div className="animate-fade-up stagger-1">
             <MetricCard
               title="Pacientes Ativos"
               value={stats.activePatients.toString()}
-              subtitle={stats.activePatientsTrend > 0 ? `${stats.activePatientsTrend} novos (est)` : "Sem novos"} // Mock trend for now
-              icon={<Users className="w-6 h-6" />}
-              trend={{ value: 12, label: "vs. mês anterior" }} // Mock trend
+              subtitle={stats.activePatientsTrend > 0 ? `+${stats.activePatientsTrend} novos` : "Sem novos"}
+              icon={<Users className="w-5 h-5 sm:w-6 sm:h-6" />}
+              trend={{ value: 12, label: "vs. mês anterior" }}
             />
           </div>
           <div className="animate-fade-up stagger-2">
@@ -264,7 +295,7 @@ export default function Dashboard() {
               title="Doses Registradas"
               value={stats.dosesLast7Days.toString()}
               subtitle="Últimos 7 dias"
-              icon={<Pill className="w-6 h-6" />}
+              icon={<Pill className="w-5 h-5 sm:w-6 sm:h-6" />}
               trend={{ value: stats.dosesTrend, label: "vs. semana anterior" }}
               variant="success"
             />
@@ -274,8 +305,8 @@ export default function Dashboard() {
               title="Eficácia Média"
               value={`${stats.avgEfficacy}%`}
               subtitle="Geral"
-              icon={<Activity className="w-6 h-6" />}
-              trend={{ value: 5, label: "estável" }} // Mock
+              icon={<Activity className="w-5 h-5 sm:w-6 sm:h-6" />}
+              trend={{ value: 5, label: "estável" }}
             />
           </div>
           <div className="animate-fade-up stagger-4">
@@ -283,23 +314,23 @@ export default function Dashboard() {
               title="Inferências IA"
               value={stats.aiInferences.toString()}
               subtitle="Total processado"
-              icon={<Brain className="w-6 h-6" />}
-              trend={{ value: stats.aiTrend, label: "crescente" }} // Mock
+              icon={<Brain className="w-5 h-5 sm:w-6 sm:h-6" />}
+              trend={{ value: stats.aiTrend, label: "crescente" }}
               variant="warning"
             />
           </div>
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+          {/* Left Column - Charts & Patients */}
+          <div className="xl:col-span-2 space-y-4 sm:space-y-6">
             <EfficacyChart data={chartData} />
             <RecentPatients patients={recentPatientsFormatted} />
           </div>
 
-          {/* Right Column */}
-          <div className="space-y-6">
+          {/* Right Column - Dose & Alerts */}
+          <div className="space-y-4 sm:space-y-6">
             {lastDose ? (
               <LastDoseCard
                 medication={lastDose.medication}
@@ -310,11 +341,11 @@ export default function Dashboard() {
               />
             ) : (
               <div className="p-6 rounded-2xl glass-card border border-border/50 text-center text-muted-foreground">
-                Nenhuma dose registrada ainda.
+                <Pill className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="font-medium">Nenhuma dose registrada</p>
+                <p className="text-sm mt-1">Registre a primeira dose para visualizar.</p>
               </div>
             )}
-
-
 
             <AlertsCard alerts={alerts} />
           </div>

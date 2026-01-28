@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "next-themes";
 import {
   Table,
   TableBody,
@@ -41,6 +42,8 @@ import {
   Upload,
   Loader2,
   Image as ImageIcon,
+  Moon,
+  Sun,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -68,6 +71,7 @@ const statusStyles = {
 };
 
 export default function Patients() {
+  const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -102,11 +106,12 @@ export default function Patients() {
         setLoading(true);
         const patientsData = await getPatients(user.uid);
         setPatients(patientsData);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Erro ao carregar pacientes:", error);
 
-        const errorCode = error?.code || "";
-        const errorMessage = error?.message || "";
+        const errorObj = (typeof error === "object" && error !== null ? error : {}) as Record<string, unknown>;
+        const errorCode = typeof errorObj.code === "string" ? errorObj.code : "";
+        const errorMessage = typeof errorObj.message === "string" ? errorObj.message : "";
         const isPermissionError =
           errorCode.includes("permission") ||
           errorCode.includes("PERMISSION") ||
@@ -272,11 +277,13 @@ export default function Patients() {
 
       setIsDialogOpen(false);
       resetForm();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar paciente:", error);
+      const errorObj = (typeof error === "object" && error !== null ? error : {}) as Record<string, unknown>;
+      const message = typeof errorObj.message === "string" ? errorObj.message : "";
       toast({
         title: "Erro ao salvar",
-        description: error.message || "Não foi possível salvar os dados.",
+        description: message || "Não foi possível salvar os dados.",
         variant: "destructive",
       });
     } finally {
@@ -314,24 +321,51 @@ export default function Patients() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
+      <div className="space-y-8 pb-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold">
-              Pacientes
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Gerenciar cadastro e perfil dos pacientes
-            </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-neuro-gradient flex items-center justify-center shadow-md">
+              <User className="w-6 h-6 text-primary-foreground" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-balance">
+                Pacientes
+              </h1>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+                Gerencie cadastro, perfil e histórico clínico
+              </p>
+            </div>
           </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+            >
+              {theme === "dark" ? (
+                <>
+                  <Sun className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Modo Claro
+                </>
+              ) : (
+                <>
+                  <Moon className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Modo Escuro
+                </>
+              )}
+            </Button>
+
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm(); // Resetar ao fechar se não salvou
           }}>
             <DialogTrigger asChild>
-              <Button variant="neuro" onClick={resetForm}>
-                <Plus className="w-4 h-4 mr-2" />
+              <Button variant="neuro" onClick={resetForm} className="h-11">
+                <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
                 Novo Paciente
               </Button>
             </DialogTrigger>
@@ -347,19 +381,19 @@ export default function Patients() {
               <div className="grid gap-4 py-4">
                 {/* Upload de Foto */}
                 <div className="space-y-2">
-                  <Label>Foto do Paciente</Label>
+                  <Label htmlFor="photo-upload">Foto do Paciente</Label>
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       {photoPreview ? (
                         <Avatar className="w-20 h-20">
-                          <AvatarImage src={photoPreview} alt="Preview" />
+                          <AvatarImage src={photoPreview} alt="Foto do paciente" />
                           <AvatarFallback>
-                            <User className="w-10 h-10" />
+                            <User className="w-10 h-10" aria-hidden="true" />
                           </AvatarFallback>
                         </Avatar>
                       ) : (
                         <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                          <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                          <ImageIcon className="w-10 h-10 text-muted-foreground" aria-hidden="true" />
                         </div>
                       )}
                     </div>
@@ -370,12 +404,13 @@ export default function Patients() {
                         onChange={handlePhotoChange}
                         className="hidden"
                         id="photo-upload"
+                        name="photoUpload"
                       />
                       <Label
                         htmlFor="photo-upload"
                         className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-input rounded-md hover:bg-accent"
                       >
-                        <Upload className="w-4 h-4" />
+                        <Upload className="w-4 h-4" aria-hidden="true" />
                         {photoFile ? "Alterar Foto" : "Adicionar Foto"}
                       </Label>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -387,30 +422,39 @@ export default function Patients() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Nome Completo *</Label>
+                    <Label htmlFor="patient-name">Nome Completo *</Label>
                     <Input
-                      placeholder="Nome do paciente"
+                      id="patient-name"
+                      name="patientName"
+                      autoComplete="name"
+                      placeholder="Nome do paciente…"
                       value={formData.name}
                       onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                       }
+                      className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Idade *</Label>
+                    <Label htmlFor="patient-age">Idade *</Label>
                     <Input
+                      id="patient-age"
+                      name="patientAge"
                       type="number"
-                      placeholder="Idade"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="Ex.: 32…"
                       value={formData.age}
                       onChange={(e) =>
                         setFormData({ ...formData, age: e.target.value })
                       }
+                      className="h-11 tabular-nums"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Gênero *</Label>
+                    <Label htmlFor="patient-gender">Gênero *</Label>
                     <Select
                       value={formData.gender}
                       onValueChange={(value) =>
@@ -420,8 +464,8 @@ export default function Patients() {
                         })
                       }
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
+                      <SelectTrigger id="patient-gender" className="h-11">
+                        <SelectValue placeholder="Selecione…" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Masculino">Masculino</SelectItem>
@@ -431,20 +475,27 @@ export default function Patients() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Condição Principal *</Label>
+                    <Label htmlFor="patient-condition">Condição Principal *</Label>
                     <Input
-                      placeholder="Ex: TDAH, Depressão"
+                      id="patient-condition"
+                      name="patientCondition"
+                      autoComplete="off"
+                      placeholder="Ex.: TDAH, depressão…"
                       value={formData.condition}
                       onChange={(e) =>
                         setFormData({ ...formData, condition: e.target.value })
                       }
+                      className="h-11"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Histórico Clínico</Label>
+                  <Label htmlFor="patient-history">Histórico Clínico</Label>
                   <Textarea
-                    placeholder="Descreva o histórico clínico relevante"
+                    id="patient-history"
+                    name="patientClinicalHistory"
+                    autoComplete="off"
+                    placeholder="Descreva o histórico clínico relevante…"
                     rows={3}
                     value={formData.clinicalHistory}
                     onChange={(e) =>
@@ -453,19 +504,26 @@ export default function Patients() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Sensibilidades / Alergias</Label>
+                  <Label htmlFor="patient-allergies">Sensibilidades / Alergias</Label>
                   <Input
-                    placeholder="Listar sensibilidades conhecidas"
+                    id="patient-allergies"
+                    name="patientAllergies"
+                    autoComplete="off"
+                    placeholder="Liste sensibilidades conhecidas…"
                     value={formData.allergies}
                     onChange={(e) =>
                       setFormData({ ...formData, allergies: e.target.value })
                     }
+                    className="h-11"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Medicamentos em Uso</Label>
+                  <Label htmlFor="patient-current-meds">Medicamentos em Uso</Label>
                   <Textarea
-                    placeholder="Liste os medicamentos atuais"
+                    id="patient-current-meds"
+                    name="patientCurrentMedications"
+                    autoComplete="off"
+                    placeholder="Liste os medicamentos atuais…"
                     rows={2}
                     value={formData.currentMedications}
                     onChange={(e) =>
@@ -479,6 +537,7 @@ export default function Patients() {
                   variant="outline"
                   onClick={() => setIsDialogOpen(false)}
                   disabled={saving}
+                  className="h-11"
                 >
                   Cancelar
                 </Button>
@@ -486,11 +545,11 @@ export default function Patients() {
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Salvando...
+                      Salvando…
                     </>
                   ) : (
                     <>
-                      <Plus className="w-4 h-4 mr-2" />
+                      <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
                       {editingPatient ? "Atualizar" : "Cadastrar"}
                     </>
                   )}
@@ -498,6 +557,7 @@ export default function Patients() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
 
           {/* Dialog de Visualização de Perfil */}
           <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
@@ -505,7 +565,7 @@ export default function Patients() {
               <DialogHeader>
                 <div className="flex items-center gap-4 mb-2">
                   <Avatar className="w-16 h-16">
-                    <AvatarImage src={viewingPatient?.photoURL} />
+                    <AvatarImage src={viewingPatient?.photoURL} alt={viewingPatient?.name || "Paciente"} />
                     <AvatarFallback className="bg-primary/10 text-primary text-xl">
                       {viewingPatient?.name?.[0]}
                     </AvatarFallback>
@@ -559,12 +619,12 @@ export default function Patients() {
                 </div>
               )}
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Fechar</Button>
+                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)} className="h-11">Fechar</Button>
                 <Button variant="neuro" onClick={() => {
                   setIsViewDialogOpen(false);
                   if (viewingPatient) handleEditClick(viewingPatient);
                 }}>
-                  <Edit className="w-4 h-4 mr-2" />
+                  <Edit className="w-4 h-4 mr-2" aria-hidden="true" />
                   Editar Perfil
                 </Button>
               </DialogFooter>
@@ -574,52 +634,90 @@ export default function Patients() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar paciente..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        <div className="glass-card rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Filter className="w-4 h-4 text-primary" aria-hidden="true" />
+            </div>
+            <h2 className="font-display font-semibold text-lg">Busca e Filtros</h2>
           </div>
-          <Button variant="outline">
-            <Filter className="w-4 h-4 mr-2" />
-            Filtros
-          </Button>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+            <div className="lg:col-span-8 space-y-2">
+              <Label htmlFor="patient-search" className="text-sm font-semibold">Busca</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  id="patient-search"
+                  name="patientSearch"
+                  autoComplete="off"
+                  placeholder="Buscar por nome do paciente…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-11"
+                />
+              </div>
+            </div>
+
+            <div className="lg:col-span-4 flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11"
+                onClick={() => setSearchTerm("")}
+                disabled={!searchTerm}
+              >
+                Limpar
+              </Button>
+            </div>
+          </div>
         </div>
 
-        {/* Stats Cards ... (mantido igual) */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div className="glass-card rounded-xl p-4">
-            <p className="text-sm text-muted-foreground">Total de Pacientes</p>
-            <p className="text-2xl font-display font-bold mt-1">{patients.length}</p>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="glass-card rounded-xl p-4 border-l-4 border-l-primary">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
+                <p className="text-2xl font-display font-bold mt-1 tabular-nums">{patients.length}</p>
+              </div>
+              <User className="w-8 h-8 text-primary/60" aria-hidden="true" />
+            </div>
           </div>
-          <div className="glass-card rounded-xl p-4">
-            <p className="text-sm text-muted-foreground">Ativos</p>
-            <p className="text-2xl font-display font-bold mt-1 text-success">
-              {patients.filter((p) => (p as any).status === "active").length}
-            </p>
+          <div className="glass-card rounded-xl p-4 border-l-4 border-l-success">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Exibindo</p>
+                <p className="text-2xl font-display font-bold mt-1 tabular-nums">{filteredPatients.length}</p>
+              </div>
+              <Search className="w-8 h-8 text-success/60" aria-hidden="true" />
+            </div>
           </div>
-          <div className="glass-card rounded-xl p-4">
-            <p className="text-sm text-muted-foreground">Em Monitoramento</p>
-            <p className="text-2xl font-display font-bold mt-1 text-warning">
-              {patients.filter((p) => (p as any).status === "monitoring").length}
-            </p>
+          <div className="glass-card rounded-xl p-4 border-l-4 border-l-info">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Perfis</p>
+                <p className="text-2xl font-display font-bold mt-1 tabular-nums">{patients.length}</p>
+              </div>
+              <Eye className="w-8 h-8 text-info/60" aria-hidden="true" />
+            </div>
           </div>
-          <div className="glass-card rounded-xl p-4">
-            <p className="text-sm text-muted-foreground">Críticos</p>
-            <p className="text-2xl font-display font-bold mt-1 text-destructive">
-              {patients.filter((p) => (p as any).status === "critical").length}
-            </p>
+          <div className="glass-card rounded-xl p-4 border-l-4 border-l-warning">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ações</p>
+                <p className="text-2xl font-display font-bold mt-1 tabular-nums">—</p>
+              </div>
+              <Edit className="w-8 h-8 text-warning/60" aria-hidden="true" />
+            </div>
           </div>
         </div>
 
         {/* Table */}
         {loading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="glass-card rounded-2xl p-12 flex items-center justify-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden="true" />
+            <span className="text-muted-foreground font-medium">Carregando pacientes…</span>
           </div>
         ) : (
           <div className="glass-card rounded-2xl overflow-hidden">
@@ -639,7 +737,7 @@ export default function Patients() {
                 {filteredPatients.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhum paciente cadastrado ainda.
+                      Nenhum paciente encontrado.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -650,7 +748,7 @@ export default function Patients() {
                           <Avatar className="w-10 h-10">
                             <AvatarImage src={patient.photoURL} alt={patient.name} />
                             <AvatarFallback className="bg-neuro-gradient">
-                              <User className="w-5 h-5 text-primary-foreground" />
+                              <User className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
                             </AvatarFallback>
                           </Avatar>
                           <div>
@@ -672,13 +770,13 @@ export default function Patients() {
                             ))}
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {patient.createdAt
                           ? new Date(patient.createdAt).toLocaleDateString("pt-BR")
-                          : "-"}
+                          : "—"}
                       </TableCell>
                       <TableCell>
                         <EfficacyRing value={85} size="sm" showLabel={false} />
@@ -691,24 +789,24 @@ export default function Patients() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="w-4 h-4" />
+                            <Button variant="ghost" size="icon" aria-label={`Ações para ${patient.name}`}>
+                              <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleViewClick(patient)}>
-                              <Eye className="w-4 h-4 mr-2" />
+                              <Eye className="w-4 h-4 mr-2" aria-hidden="true" />
                               Ver Perfil
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleEditClick(patient)}>
-                              <Edit className="w-4 h-4 mr-2" />
+                              <Edit className="w-4 h-4 mr-2" aria-hidden="true" />
                               Editar
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => patient.id && handleDeletePatient(patient.id)}
                             >
-                              <Trash2 className="w-4 h-4 mr-2" />
+                              <Trash2 className="w-4 h-4 mr-2" aria-hidden="true" />
                               Excluir
                             </DropdownMenuItem>
                           </DropdownMenuContent>

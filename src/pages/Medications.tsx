@@ -121,11 +121,12 @@ export default function Medications() {
         setLoading(true);
         const medicationsData = await getMedications(user.uid);
         setMedications(medicationsData);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Erro ao carregar medicamentos:", error);
 
-        const errorCode = error?.code || "";
-        const errorMessage = error?.message || "";
+        const errorObj = (typeof error === "object" && error !== null ? error : {}) as Record<string, unknown>;
+        const errorCode = typeof errorObj.code === "string" ? errorObj.code : "";
+        const errorMessage = typeof errorObj.message === "string" ? errorObj.message : "";
         const isPermissionError =
           errorCode.includes("permission") ||
           errorCode.includes("PERMISSION") ||
@@ -173,6 +174,12 @@ export default function Medications() {
       return matchesSearch && matchesClass;
     }
   );
+
+  const dtf = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });
+  const totalMedications = medications.length;
+  const filteredTotal = filteredMedications.length;
+  const uniqueClasses = new Set(medications.map((m) => m.therapeuticClass)).size;
+  const hasActiveFilters = !!searchTerm || selectedClasses.length > 0;
 
   // Resetar formulário
   const resetForm = () => {
@@ -337,17 +344,21 @@ export default function Medications() {
       // Fechar dialog e resetar formulário
       setIsDialogOpen(false);
       resetForm();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao salvar medicamento:", error);
+
+      const errorObj = (typeof error === "object" && error !== null ? error : {}) as Record<string, unknown>;
+      const code = typeof errorObj.code === "string" ? errorObj.code : "";
+      const message = typeof errorObj.message === "string" ? errorObj.message : "";
 
       let errorMessage = "Não foi possível cadastrar o medicamento. Tente novamente.";
 
-      if (error?.message) {
-        errorMessage = error.message;
-      } else if (error?.code) {
-        if (error.code.includes("permission")) {
+      if (message) {
+        errorMessage = message;
+      } else if (code) {
+        if (code.includes("permission")) {
           errorMessage = "Permissão negada. Verifique as regras do Realtime Database no Firebase Console.";
-        } else if (error.code.includes("database")) {
+        } else if (code.includes("database")) {
           errorMessage = "Realtime Database não está configurado. Configure no Firebase Console.";
         }
       }
@@ -364,76 +375,96 @@ export default function Medications() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
+      <div className="space-y-8 pb-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold">
-              Medicamentos
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Catálogo de medicamentos disponíveis
-            </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-neuro-gradient flex items-center justify-center shadow-md">
+              <Pill className="w-6 h-6 text-primary-foreground" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-balance">
+                Medicamentos
+              </h1>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+                Catálogo de medicamentos com classes, dosagens e formas farmacêuticas
+              </p>
+            </div>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}
+          >
             <DialogTrigger asChild>
-              <Button variant="neuro">
-                <Plus className="w-4 h-4 mr-2" />
+              <Button variant="neuro" className="h-11">
+                <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
                 Novo Medicamento
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[650px]">
               <DialogHeader>
                 <DialogTitle className="font-display">
                   {editingId ? "Editar Medicamento" : "Cadastrar Medicamento"}
                 </DialogTitle>
                 <DialogDescription>
-                  {editingId ? "Atualize os dados do medicamento" : "Adicione um novo medicamento ao catálogo"}
+                  {editingId ? "Atualize os dados do medicamento." : "Adicione um novo medicamento ao catálogo."}
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid gap-5 py-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Nome Genérico *</Label>
+                    <Label htmlFor="med-name">Nome Genérico *</Label>
                     <Input
-                      placeholder="Ex: Metilfenidato"
+                      id="med-name"
+                      name="medName"
+                      autoComplete="off"
+                      placeholder="Ex.: Metilfenidato…"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Nome Comercial *</Label>
+                    <Label htmlFor="med-brand">Nome Comercial *</Label>
                     <Input
-                      placeholder="Ex: Ritalina"
+                      id="med-brand"
+                      name="medBrand"
+                      autoComplete="off"
+                      placeholder="Ex.: Ritalina…"
                       value={formData.brandName}
                       onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
+                      className="h-11"
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Princípio Ativo *</Label>
+                  <Label htmlFor="med-active">Princípio Ativo *</Label>
                   <Input
-                    placeholder="Ex: Cloridrato de Metilfenidato"
+                    id="med-active"
+                    name="medActiveIngredient"
+                    autoComplete="off"
+                    placeholder="Ex.: Cloridrato de metilfenidato…"
                     value={formData.activeIngredient}
-                    onChange={(e) =>
-                      setFormData({ ...formData, activeIngredient: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, activeIngredient: e.target.value })}
+                    className="h-11"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Classe Terapêutica *</Label>
+                    <Label htmlFor="med-class">Classe Terapêutica *</Label>
                     <Select
                       value={formData.therapeuticClass}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, therapeuticClass: value })
-                      }
+                      onValueChange={(value) => setFormData({ ...formData, therapeuticClass: value })}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
+                      <SelectTrigger id="med-class" className="h-11">
+                        <SelectValue placeholder="Selecione…" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="stimulant">Psicoestimulante</SelectItem>
@@ -446,13 +477,13 @@ export default function Medications() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Forma Farmacêutica *</Label>
+                    <Label htmlFor="med-form">Forma Farmacêutica *</Label>
                     <Select
                       value={formData.form}
                       onValueChange={(value) => setFormData({ ...formData, form: value })}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
+                      <SelectTrigger id="med-form" className="h-11">
+                        <SelectValue placeholder="Selecione…" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="tablet">Comprimido</SelectItem>
@@ -463,34 +494,45 @@ export default function Medications() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Dose Mínima *</Label>
+                    <Label htmlFor="med-min">Dose Mínima *</Label>
                     <Input
+                      id="med-min"
+                      name="medMinDose"
                       type="number"
+                      inputMode="decimal"
                       step="0.01"
-                      placeholder="Ex: 5"
+                      autoComplete="off"
+                      placeholder="Ex.: 5…"
                       value={formData.minDose}
                       onChange={(e) => setFormData({ ...formData, minDose: e.target.value })}
+                      className="h-11 tabular-nums"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Dose Máxima *</Label>
+                    <Label htmlFor="med-max">Dose Máxima *</Label>
                     <Input
+                      id="med-max"
+                      name="medMaxDose"
                       type="number"
+                      inputMode="decimal"
                       step="0.01"
-                      placeholder="Ex: 60"
+                      autoComplete="off"
+                      placeholder="Ex.: 60…"
                       value={formData.maxDose}
                       onChange={(e) => setFormData({ ...formData, maxDose: e.target.value })}
+                      className="h-11 tabular-nums"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Unidade *</Label>
+                    <Label htmlFor="med-unit">Unidade *</Label>
                     <Select
                       value={formData.unit}
                       onValueChange={(value) => setFormData({ ...formData, unit: value })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="med-unit" className="h-11">
                         <SelectValue placeholder="mg" />
                       </SelectTrigger>
                       <SelectContent>
@@ -503,7 +545,8 @@ export default function Medications() {
                   </div>
                 </div>
               </div>
-              <DialogFooter>
+
+              <DialogFooter className="gap-2 sm:gap-0">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -511,18 +554,19 @@ export default function Medications() {
                     resetForm();
                   }}
                   disabled={saving}
+                  className="h-11"
                 >
                   Cancelar
                 </Button>
-                <Button variant="neuro" onClick={handleSaveMedication} disabled={saving}>
+                <Button variant="neuro" onClick={handleSaveMedication} disabled={saving} className="h-11">
                   {saving ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Salvando...
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+                      Salvando…
                     </>
                   ) : (
                     <>
-                      <Plus className="w-4 h-4 mr-2" />
+                      <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
                       {editingId ? "Atualizar" : "Cadastrar"}
                     </>
                   )}
@@ -541,7 +585,7 @@ export default function Medications() {
                 <div className="grid gap-6 py-4">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                      <Pill className="w-8 h-8 text-primary" />
+                      <Pill className="w-8 h-8 text-primary" aria-hidden="true" />
                     </div>
                     <div>
                       <h3 className="font-display text-xl font-bold">{viewingMedication.name}</h3>
@@ -575,13 +619,13 @@ export default function Medications() {
                   <div className="pt-4 border-t text-sm text-muted-foreground flex justify-between">
                     <span>ID: {viewingMedication.id}</span>
                     <span>
-                      Cadastrado em: {viewingMedication.createdAt ? new Date(viewingMedication.createdAt).toLocaleDateString() : "-"}
+                      Cadastrado em: {viewingMedication.createdAt ? dtf.format(new Date(viewingMedication.createdAt)) : "—"}
                     </span>
                   </div>
                 </div>
               )}
               <DialogFooter>
-                <Button onClick={() => setViewingMedication(null)}>Fechar</Button>
+                <Button onClick={() => setViewingMedication(null)} className="h-11">Fechar</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -597,10 +641,10 @@ export default function Medications() {
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+                <Button variant="outline" onClick={() => setIsDeleteOpen(false)} className="h-11">
                   Cancelar
                 </Button>
-                <Button variant="destructive" onClick={confirmDelete}>
+                <Button variant="destructive" onClick={confirmDelete} className="h-11">
                   Excluir
                 </Button>
               </DialogFooter>
@@ -608,70 +652,141 @@ export default function Medications() {
           </Dialog>
         </div>
 
+        {/* Stats */}
+        {!loading && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="glass-card rounded-xl p-4 border-l-4 border-l-primary">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</p>
+                  <p className="text-2xl font-display font-bold mt-1 tabular-nums">{totalMedications}</p>
+                </div>
+                <Pill className="w-8 h-8 text-primary/60" aria-hidden="true" />
+              </div>
+            </div>
+            <div className="glass-card rounded-xl p-4 border-l-4 border-l-info">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Classes</p>
+                  <p className="text-2xl font-display font-bold mt-1 tabular-nums">{uniqueClasses}</p>
+                </div>
+                <Beaker className="w-8 h-8 text-info/60" aria-hidden="true" />
+              </div>
+            </div>
+            <div className="glass-card rounded-xl p-4 border-l-4 border-l-success">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Exibindo</p>
+                  <p className="text-2xl font-display font-bold mt-1 tabular-nums">{filteredTotal}</p>
+                </div>
+                <Search className="w-8 h-8 text-success/60" aria-hidden="true" />
+              </div>
+            </div>
+            <div className="glass-card rounded-xl p-4 border-l-4 border-l-warning">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filtros</p>
+                  <p className="text-2xl font-display font-bold mt-1 tabular-nums">{hasActiveFilters ? selectedClasses.length + (searchTerm ? 1 : 0) : 0}</p>
+                </div>
+                <Filter className="w-8 h-8 text-warning/60" aria-hidden="true" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search and Filters */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar medicamento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <div className="glass-card rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Filter className="w-4 h-4 text-primary" aria-hidden="true" />
+            </div>
+            <h2 className="font-display font-semibold text-lg">Busca e Filtros</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+            <div className="lg:col-span-8 space-y-2">
+              <Label htmlFor="med-search" className="text-sm font-semibold">Busca</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  id="med-search"
+                  name="medSearch"
+                  autoComplete="off"
+                  placeholder="Buscar por nome genérico ou comercial…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-11"
+                />
+              </div>
             </div>
 
-            <Collapsible
-              open={isFilterOpen}
-              onOpenChange={setIsFilterOpen}
-              className="w-full sm:w-auto"
-            >
-              <CollapsibleTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filtrar por Classe
-                  <ChevronDown className={cn("w-4 h-4 ml-2 transition-transform duration-200", isFilterOpen ? "rotate-180" : "")} />
-                </Button>
-              </CollapsibleTrigger>
-            </Collapsible>
+            <div className="lg:col-span-4 flex items-center gap-2">
+              <Collapsible
+                open={isFilterOpen}
+                onOpenChange={setIsFilterOpen}
+                className="w-full"
+              >
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="w-full h-11 justify-between">
+                    <span className="inline-flex items-center">
+                      <Filter className="w-4 h-4 mr-2" aria-hidden="true" />
+                      Filtrar por Classe
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 transition-[transform] duration-200",
+                        isFilterOpen ? "rotate-180" : ""
+                      )}
+                      aria-hidden="true"
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+              </Collapsible>
+
+              <Button
+                variant="ghost"
+                className="h-11"
+                onClick={() => {
+                  setSearchTerm("");
+                  setSelectedClasses([]);
+                }}
+                disabled={!hasActiveFilters}
+              >
+                Limpar
+              </Button>
+            </div>
           </div>
 
           <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-            <CollapsibleContent className="space-y-2 data-[state=open]:animate-slideDown data-[state=closed]:animate-slideUp overflow-hidden">
-              <div className="bg-muted/30 p-4 rounded-xl border border-border">
-                <p className="text-sm font-medium mb-3">Selecione as classes terapêuticas:</p>
+            <CollapsibleContent className="overflow-hidden pt-4">
+              <div className="bg-muted/20 p-4 rounded-xl border border-border">
+                <p className="text-sm font-medium mb-3">
+                  Selecione as classes terapêuticas:
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(therapeuticClassMap).map(([key, label]) => {
                     const isSelected = selectedClasses.includes(label);
                     return (
-                      <div
+                      <button
                         key={key}
+                        type="button"
                         onClick={() => toggleClass(label)}
                         className={cn(
-                          "cursor-pointer inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                          "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
+                          "transition-[background-color,color,border-color] duration-200",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           isSelected
-                            ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/80"
-                            : "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                          // Use a cor correspondente se disponível
-                          !isSelected && therapeuticClassColors[label] ? therapeuticClassColors[label] + " bg-opacity-10 border-opacity-20 hover:bg-opacity-20" : ""
+                            ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90"
+                            : "border-border bg-background hover:bg-muted/50"
                         )}
+                        aria-pressed={isSelected}
                       >
-                        {isSelected && <Check className="w-3 h-3 mr-1" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 mr-1" aria-hidden="true" />}
                         {label}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
-                {selectedClasses.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedClasses([])}
-                    className="mt-3 h-8 text-xs text-muted-foreground hover:text-foreground p-0"
-                  >
-                    Limpar filtros
-                  </Button>
-                )}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -679,48 +794,70 @@ export default function Medications() {
 
         {/* Grid of Medication Cards */}
         {loading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="glass-card rounded-2xl p-12 flex items-center justify-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden="true" />
+            <span className="text-muted-foreground font-medium">Carregando medicamentos…</span>
           </div>
         ) : filteredMedications.length === 0 ? (
-          <div className="text-center py-12">
-            <Pill className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">Nenhum medicamento cadastrado ainda.</p>
+          <div className="glass-card rounded-2xl p-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <Pill className="w-7 h-7 text-muted-foreground" aria-hidden="true" />
+            </div>
+            <p className="font-display font-semibold text-lg">
+              {hasActiveFilters ? "Nenhum resultado para os filtros" : "Nenhum medicamento cadastrado"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {hasActiveFilters ? "Tente ajustar a busca ou remover filtros." : "Cadastre o primeiro medicamento para começar."}
+            </p>
+            <div className="mt-6 flex justify-center">
+              <Button variant="neuro" onClick={() => setIsDialogOpen(true)} className="h-11">
+                <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
+                Cadastrar Medicamento
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredMedications.map((med) => (
-              <div key={med.id} className="glass-card rounded-2xl p-6 hover:shadow-lg transition-all">
+              <div
+                key={med.id}
+                className={cn(
+                  "glass-card rounded-2xl p-6",
+                  "transition-[transform,box-shadow,background-color] duration-200",
+                  "hover:shadow-lg hover:bg-card/90"
+                )}
+                style={{ contentVisibility: "auto" }}
+              >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Pill className="w-6 h-6 text-primary" />
+                      <Pill className="w-6 h-6 text-primary" aria-hidden="true" />
                     </div>
-                    <div>
-                      <h3 className="font-display font-semibold">{med.name}</h3>
-                      <p className="text-sm text-muted-foreground">{med.brandName}</p>
+                    <div className="min-w-0">
+                      <h3 className="font-display font-semibold truncate">{med.name}</h3>
+                      <p className="text-sm text-muted-foreground truncate">{med.brandName}</p>
                     </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" aria-label={`Ações para ${med.name}`}>
+                        <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => handleView(med)}>
-                        <Eye className="w-4 h-4 mr-2" />
+                        <Eye className="w-4 h-4 mr-2" aria-hidden="true" />
                         Ver Detalhes
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleEdit(med)}>
-                        <Edit className="w-4 h-4 mr-2" />
+                        <Edit className="w-4 h-4 mr-2" aria-hidden="true" />
                         Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
                         onClick={() => handleDelete(med)}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
+                        <Trash2 className="w-4 h-4 mr-2" aria-hidden="true" />
                         Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -729,8 +866,8 @@ export default function Medications() {
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <Beaker className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">{med.activeIngredient}</span>
+                    <Beaker className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+                    <span className="text-sm text-muted-foreground line-clamp-2 break-words">{med.activeIngredient}</span>
                   </div>
 
                   <Badge
@@ -750,16 +887,14 @@ export default function Medications() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Dose</span>
-                      <span className="font-medium">
+                      <span className="font-medium tabular-nums">
                         {med.minDose} - {med.maxDose} {med.unit}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Cadastrado em</span>
-                      <span className="font-medium">
-                        {med.createdAt
-                          ? new Date(med.createdAt).toLocaleDateString("pt-BR")
-                          : "-"}
+                      <span className="font-medium tabular-nums">
+                        {med.createdAt ? dtf.format(new Date(med.createdAt)) : "—"}
                       </span>
                     </div>
                   </div>

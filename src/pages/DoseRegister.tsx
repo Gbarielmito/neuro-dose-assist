@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { EfficacyRing } from "@/components/dashboard/EfficacyRing";
-import { Brain, Pill, Clock, User, Sparkles, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Brain, Pill, User, Sparkles, AlertTriangle, CheckCircle, Loader2, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPatients, Patient } from "@/lib/patients";
@@ -75,10 +76,10 @@ export default function DoseRegister() {
   }, [user]);
 
   const handleSubmit = async () => {
-    if (!selectedPatientId || !selectedMedicationId) {
+    if (!selectedPatientId || !selectedMedicationId || !doseAmount || Number(doseAmount) <= 0 || !indication) {
       toast({
         title: "Campos obrigatórios",
-        description: "Selecione um paciente e um medicamento.",
+        description: "Selecione paciente, medicamento, dose e indicação.",
         variant: "destructive"
       });
       return;
@@ -152,70 +153,103 @@ export default function DoseRegister() {
 
   const moods = ["😞", "😔", "😐", "🙂", "😊"];
 
+  const selectedPatient = patients.find((p) => p.id === selectedPatientId);
+  const selectedMedication = medications.find((m) => m.id === selectedMedicationId);
+
+  const canContinueStep1 =
+    !!selectedPatientId &&
+    !!selectedMedicationId &&
+    !!doseAmount &&
+    Number(doseAmount) > 0 &&
+    !!doseTime &&
+    !!indication;
+
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-8 pb-8">
         {/* Header */}
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold">
-            Registrar Dose
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Registre uma nova dose com contexto clínico e subjetivo
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-neuro-gradient flex items-center justify-center shadow-md">
+            <Pill className="w-6 h-6 text-primary-foreground" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-balance">
+              Registrar Dose
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              Registre uma nova dose com contexto clínico, estado subjetivo e análise por IA
+            </p>
+          </div>
         </div>
 
         {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-2">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
-                  step >= s
-                    ? "bg-neuro-gradient text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {s}
-              </div>
-              {s < 3 && (
-                <div
-                  className={cn(
-                    "w-16 h-0.5 mx-2",
-                    step > s ? "bg-primary" : "bg-muted"
-                  )}
-                />
-              )}
+        <div className="glass-card rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Etapa {step} de 3
+              </p>
+              <p className="font-display font-semibold text-base truncate">
+                {step === 1 ? "Informações da Dose" : step === 2 ? "Estado Subjetivo" : "Confirmação & IA"}
+              </p>
             </div>
-          ))}
+            <ol className="flex items-center gap-2" aria-label="Progresso">
+              {[1, 2, 3].map((s) => (
+                <li key={s} className="flex items-center">
+                  <div
+                    aria-current={step === s ? "step" : undefined}
+                    className={cn(
+                      "w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold",
+                      "transition-[background-color,color,box-shadow] duration-200",
+                      step >= s
+                        ? "bg-neuro-gradient text-primary-foreground shadow-sm"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {s}
+                  </div>
+                  {s < 3 && (
+                    <div
+                      className={cn(
+                        "w-10 sm:w-14 h-0.5 mx-2 rounded-full",
+                        step > s ? "bg-primary" : "bg-muted"
+                      )}
+                      aria-hidden="true"
+                    />
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
 
         {!showResult ? (
-          <div className="glass-card rounded-2xl p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Main form */}
+            <div className="lg:col-span-8 glass-card rounded-2xl p-6 sm:p-8">
             {/* Step 1: Dose Info */}
             {step === 1 && (
               <div className="space-y-6 animate-fade-up">
                 <div className="flex items-center gap-3 pb-4 border-b border-border">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Pill className="w-5 h-5 text-primary" />
+                    <Pill className="w-5 h-5 text-primary" aria-hidden="true" />
                   </div>
                   <div>
                     <h2 className="font-display font-semibold text-lg">
                       Informações da Dose
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Dados do medicamento e dosagem
+                      Selecione paciente, medicamento e contexto da dose
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label>Paciente</Label>
+                    <Label htmlFor="patientId">Paciente</Label>
                     <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={loadingData ? "Carregando..." : "Selecione o paciente"} />
+                      <SelectTrigger id="patientId" className="h-11">
+                        <SelectValue placeholder={loadingData ? "Carregando…" : "Selecione…"} />
                       </SelectTrigger>
                       <SelectContent>
                         {patients.length > 0 ? (
@@ -226,7 +260,7 @@ export default function DoseRegister() {
                           ))
                         ) : (
                           <SelectItem value="none" disabled>
-                            {loadingData ? "Carregando..." : "Nenhum paciente cadastrado"}
+                            {loadingData ? "Carregando…" : "Nenhum paciente cadastrado"}
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -234,10 +268,10 @@ export default function DoseRegister() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Medicamento</Label>
+                    <Label htmlFor="medicationId">Medicamento</Label>
                     <Select value={selectedMedicationId} onValueChange={setSelectedMedicationId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={loadingData ? "Carregando..." : "Selecione o medicamento"} />
+                      <SelectTrigger id="medicationId" className="h-11">
+                        <SelectValue placeholder={loadingData ? "Carregando…" : "Selecione…"} />
                       </SelectTrigger>
                       <SelectContent>
                         {medications.length > 0 ? (
@@ -248,7 +282,7 @@ export default function DoseRegister() {
                           ))
                         ) : (
                           <SelectItem value="none" disabled>
-                            {loadingData ? "Carregando..." : "Nenhum medicamento cadastrado"}
+                            {loadingData ? "Carregando…" : "Nenhum medicamento cadastrado"}
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -256,20 +290,30 @@ export default function DoseRegister() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Dose (mg)</Label>
+                    <Label htmlFor="doseAmount">Dose (mg)</Label>
                     <Input
+                      id="doseAmount"
+                      name="doseAmount"
                       type="number"
-                      placeholder="Ex: 20"
+                      inputMode="decimal"
+                      min={0}
+                      step="any"
+                      autoComplete="off"
+                      placeholder="Ex.: 20…"
                       value={doseAmount}
                       onChange={(e) => setDoseAmount(e.target.value)}
+                      className="h-11"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Use o valor em mg (ex.: 20). Evite texto.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Forma de Administração</Label>
+                    <Label htmlFor="adminForm">Forma de Administração</Label>
                     <Select value={adminForm} onValueChange={setAdminForm}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
+                      <SelectTrigger id="adminForm" className="h-11">
+                        <SelectValue placeholder="Selecione…" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="oral">Oral</SelectItem>
@@ -281,21 +325,32 @@ export default function DoseRegister() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Horário</Label>
+                    <Label htmlFor="doseTime">Horário</Label>
                     <Input
+                      id="doseTime"
+                      name="doseTime"
                       type="time"
+                      autoComplete="off"
                       value={doseTime}
                       onChange={(e) => setDoseTime(e.target.value)}
+                      className="h-11"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Indicação</Label>
+                    <Label htmlFor="indication">Indicação</Label>
                     <Input
-                      placeholder="Ex: TDAH, Depressão"
+                      id="indication"
+                      name="indication"
+                      autoComplete="off"
+                      placeholder="Ex.: TDAH, depressão…"
                       value={indication}
                       onChange={(e) => setIndication(e.target.value)}
+                      className="h-11"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Informe o motivo clínico (uma ou mais condições).
+                    </p>
                   </div>
                 </div>
               </div>
@@ -306,14 +361,14 @@ export default function DoseRegister() {
               <div className="space-y-6 animate-fade-up">
                 <div className="flex items-center gap-3 pb-4 border-b border-border">
                   <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <User className="w-5 h-5 text-secondary-foreground" />
+                    <User className="w-5 h-5 text-secondary-foreground" aria-hidden="true" />
                   </div>
                   <div>
                     <h2 className="font-display font-semibold text-lg">
                       Estado Subjetivo
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Como o paciente está se sentindo
+                      Registre o estado atual para contextualizar a análise
                     </p>
                   </div>
                 </div>
@@ -323,7 +378,7 @@ export default function DoseRegister() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label>Humor</Label>
-                      <span className="text-3xl">{moods[mood[0] - 1]}</span>
+                      <span className="text-3xl" aria-hidden="true">{moods[mood[0] - 1]}</span>
                     </div>
                     <Slider
                       value={mood}
@@ -344,7 +399,7 @@ export default function DoseRegister() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label>Nível de Energia</Label>
-                      <span className="font-medium">{energy[0]}/10</span>
+                      <span className="font-medium tabular-nums">{energy[0]}/10</span>
                     </div>
                     <Slider
                       value={energy}
@@ -360,7 +415,7 @@ export default function DoseRegister() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label>Qualidade do Sono (noite anterior)</Label>
-                      <span className="font-medium">{sleep[0]}/10</span>
+                      <span className="font-medium tabular-nums">{sleep[0]}/10</span>
                     </div>
                     <Slider
                       value={sleep}
@@ -374,9 +429,12 @@ export default function DoseRegister() {
 
                   {/* Effects */}
                   <div className="space-y-2">
-                    <Label>Efeitos Percebidos</Label>
+                    <Label htmlFor="effects">Efeitos Percebidos</Label>
                     <Textarea
-                      placeholder="Descreva quaisquer efeitos observados..."
+                      id="effects"
+                      name="effects"
+                      autoComplete="off"
+                      placeholder="Descreva efeitos observados (se houver)…"
                       rows={3}
                       value={effects}
                       onChange={(e) => setEffects(e.target.value)}
@@ -391,7 +449,7 @@ export default function DoseRegister() {
               <div className="space-y-6 animate-fade-up">
                 <div className="flex items-center gap-3 pb-4 border-b border-border">
                   <div className="w-10 h-10 rounded-xl bg-neuro-gradient flex items-center justify-center">
-                    <Brain className="w-5 h-5 text-primary-foreground" />
+                    <Brain className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
                   </div>
                   <div>
                     <h2 className="font-display font-semibold text-lg">
@@ -412,18 +470,18 @@ export default function DoseRegister() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Paciente</span>
                         <span className="font-medium">
-                          {patients.find(p => p.id === selectedPatientId)?.name || "Não selecionado"}
+                          {selectedPatient?.name || "Não selecionado"}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Medicamento</span>
                         <span className="font-medium">
-                          {medications.find(m => m.id === selectedMedicationId)?.name || "Não selecionado"}
+                          {selectedMedication?.name || "Não selecionado"}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Dose</span>
-                        <span className="font-medium">{doseAmount || "-"} mg</span>
+                        <span className="font-medium tabular-nums">{doseAmount || "-"} mg</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Horário</span>
@@ -439,15 +497,15 @@ export default function DoseRegister() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Humor</span>
-                        <span className="text-xl">{moods[mood[0] - 1]}</span>
+                        <span className="text-xl" aria-hidden="true">{moods[mood[0] - 1]}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Energia</span>
-                        <span className="font-medium">{energy[0]}/10</span>
+                        <span className="font-medium tabular-nums">{energy[0]}/10</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Sono</span>
-                        <span className="font-medium">{sleep[0]}/10</span>
+                        <span className="font-medium tabular-nums">{sleep[0]}/10</span>
                       </div>
                     </div>
                   </div>
@@ -455,7 +513,7 @@ export default function DoseRegister() {
 
                 <div className="p-4 rounded-xl bg-neuro-gradient-subtle border border-primary/20">
                   <div className="flex items-center gap-2 text-primary mb-2">
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkles className="w-4 h-4" aria-hidden="true" />
                     <span className="text-sm font-medium">Análise de IA</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -476,7 +534,11 @@ export default function DoseRegister() {
                 Voltar
               </Button>
               {step < 3 ? (
-                <Button variant="neuro" onClick={() => setStep(step + 1)}>
+                <Button
+                  variant="neuro"
+                  onClick={() => setStep(step + 1)}
+                  disabled={step === 1 ? !canContinueStep1 : false}
+                >
                   Continuar
                 </Button>
               ) : (
@@ -484,24 +546,88 @@ export default function DoseRegister() {
                   {isAnalyzing ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Analisando...
+                      Analisando…
                     </>
                   ) : (
                     <>
-                      <Brain className="w-4 h-4 mr-2" />
+                      <Brain className="w-4 h-4 mr-2" aria-hidden="true" />
                       Registrar e Analisar
                     </>
                   )}
                 </Button>
               )}
             </div>
+            </div>
+
+            {/* Side summary */}
+            <aside className="lg:col-span-4 space-y-6">
+              <div className="glass-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <ClipboardCheck className="w-5 h-5 text-primary" aria-hidden="true" />
+                  </div>
+                  <h2 className="font-display font-semibold text-base">Resumo</h2>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Paciente</span>
+                    <span className="font-medium truncate">{selectedPatient?.name || "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Medicamento</span>
+                    <span className="font-medium truncate">{selectedMedication?.name || "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Dose</span>
+                    <span className="font-medium tabular-nums">{doseAmount ? `${doseAmount} mg` : "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Horário</span>
+                    <span className="font-medium tabular-nums">{doseTime || "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Indicação</span>
+                    <span className="font-medium truncate">{indication || "—"}</span>
+                  </div>
+                </div>
+
+                {!loadingData && (patients.length === 0 || medications.length === 0) && (
+                  <div className="mt-5 pt-5 border-t border-border space-y-3">
+                    <p className="text-sm font-medium">Faltam cadastros para registrar doses.</p>
+                    <div className="flex flex-col gap-2">
+                      {patients.length === 0 && (
+                        <Button asChild variant="outline" className="justify-start">
+                          <Link to="/patients">Cadastrar Paciente</Link>
+                        </Button>
+                      )}
+                      {medications.length === 0 && (
+                        <Button asChild variant="outline" className="justify-start">
+                          <Link to="/medications">Cadastrar Medicamento</Link>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="glass-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-primary mb-2">
+                  <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+                  <p className="text-sm font-semibold">Dica</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Para uma análise melhor, preencha indicação e efeitos percebidos (se houver).
+                </p>
+              </div>
+            </aside>
           </div>
         ) : (
           /* Result Card */
           <div className="glass-card rounded-2xl p-8 animate-fade-up">
             <div className="text-center mb-8">
               <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-success" />
+                <CheckCircle className="w-8 h-8 text-success" aria-hidden="true" />
               </div>
               <h2 className="font-display font-bold text-2xl mb-2">
                 Dose Registrada com Sucesso
@@ -559,7 +685,7 @@ export default function DoseRegister() {
             {/* AI Recommendation */}
             <div className="mt-6 p-4 rounded-xl bg-neuro-gradient-subtle border border-primary/20">
               <div className="flex items-start gap-3">
-                <Brain className="w-5 h-5 text-primary mt-0.5" />
+                <Brain className="w-5 h-5 text-primary mt-0.5" aria-hidden="true" />
                 <div>
                   <h4 className="font-medium text-sm mb-1">
                     Recomendação da IA
@@ -575,7 +701,9 @@ export default function DoseRegister() {
               <Button variant="outline" onClick={() => { setStep(1); setShowResult(false); }}>
                 Novo Registro
               </Button>
-              <Button variant="neuro">Ver Histórico</Button>
+              <Button asChild variant="neuro">
+                <Link to="/history">Ver Histórico</Link>
+              </Button>
             </div>
           </div>
         )}

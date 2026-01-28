@@ -293,51 +293,118 @@ export default function Reports() {
     document.body.removeChild(link);
   };
 
+  // Calculate additional statistics
+  const uniqueMedications = new Set(filteredDoses.map(d => d.medicationId)).size;
+  const avgMood = totalDoses > 0
+    ? Math.round(filteredDoses.reduce((acc, dose) => acc + (dose?.subjectiveState?.mood || 0), 0) / totalDoses * 10) / 10
+    : 0;
+  const avgEnergy = totalDoses > 0
+    ? Math.round(filteredDoses.reduce((acc, dose) => acc + (dose?.subjectiveState?.energy || 0), 0) / totalDoses * 10) / 10
+    : 0;
+
   return (
     <MainLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold">
-            Relatórios
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Gerar e exportar relatórios personalizados com dados em tempo real
-          </p>
+      <div className="space-y-8 pb-8">
+        {/* Header Section */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-neuro-gradient flex items-center justify-center">
+              <FileText className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+                Relatórios e Análises
+              </h1>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+                Gere relatórios profissionais e exporte dados detalhados para análise
+              </p>
+            </div>
+          </div>
         </div>
+
+        {/* Quick Stats Bar */}
+        {!loading && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="glass-card rounded-xl p-4 border-l-4 border-l-primary">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total de Doses</p>
+                  <p className="text-2xl font-display font-bold mt-1">{totalDoses}</p>
+                </div>
+                <Pill className="w-8 h-8 text-primary/60" />
+              </div>
+            </div>
+            <div className="glass-card rounded-xl p-4 border-l-4 border-l-success">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Eficácia Média</p>
+                  <p className={cn("text-2xl font-display font-bold mt-1", avgEfficacy > 70 ? "text-success" : avgEfficacy > 50 ? "text-warning" : "text-destructive")}>
+                    {avgEfficacy}%
+                  </p>
+                </div>
+                <Activity className="w-8 h-8 text-success/60" />
+              </div>
+            </div>
+            <div className="glass-card rounded-xl p-4 border-l-4 border-l-info">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Medicamentos</p>
+                  <p className="text-2xl font-display font-bold mt-1">{uniqueMedications}</p>
+                </div>
+                <Brain className="w-8 h-8 text-info/60" />
+              </div>
+            </div>
+            <div className="glass-card rounded-xl p-4 border-l-4 border-l-warning">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Alertas</p>
+                  <p className="text-2xl font-display font-bold mt-1 text-warning">
+                    {doses && doses.filter(d => d && d.subjectiveState && d.subjectiveState.mood < 5).length || 0}
+                  </p>
+                </div>
+                <Activity className="w-8 h-8 text-warning/60" />
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Configuration Panel */}
           <div className="lg:col-span-1 space-y-6">
             {/* Report Type Selection */}
-            <div className="glass-card rounded-2xl p-6">
-              <h2 className="font-display font-semibold mb-4">Tipo de Relatório</h2>
+            <div className="glass-card rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-primary" />
+                </div>
+                <h2 className="font-display font-semibold text-lg">Tipo de Relatório</h2>
+              </div>
               <div className="space-y-3">
                 {reportTypes.map((type) => (
                   <div
                     key={type.id}
                     onClick={() => setSelectedReport(type.id)}
                     className={cn(
-                      "p-4 rounded-xl border cursor-pointer transition-all",
+                      "p-4 rounded-xl border-2 cursor-pointer transition-all duration-200",
                       selectedReport === type.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
+                        ? "border-primary bg-primary/5 shadow-md scale-[1.02]"
+                        : "border-border hover:border-primary/50 hover:bg-muted/50"
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center",
+                          "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
                           selectedReport === type.id
-                            ? "bg-primary/10 text-primary"
+                            ? "bg-primary/20 text-primary shadow-sm"
                             : "bg-muted text-muted-foreground"
                         )}
                       >
-                        <type.icon className="w-5 h-5" />
+                        <type.icon className="w-6 h-6" />
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">{type.title}</p>
-                        <p className="text-xs text-muted-foreground">{type.description}</p>
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">{type.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{type.description}</p>
                       </div>
                     </div>
                   </div>
@@ -346,21 +413,26 @@ export default function Reports() {
             </div>
 
             {/* Filters */}
-            <div className="glass-card rounded-2xl p-6">
-              <h2 className="font-display font-semibold mb-4">Filtros</h2>
-              <div className="space-y-4">
+            <div className="glass-card rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center">
+                  <CalendarIcon className="w-4 h-4 text-info" />
+                </div>
+                <h2 className="font-display font-semibold text-lg">Filtros</h2>
+              </div>
+              <div className="space-y-5">
                 {/* Patient */}
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
+                <div className="space-y-2.5">
+                  <Label className="flex items-center gap-2 text-sm font-semibold">
+                    <User className="w-4 h-4 text-primary" />
                     Paciente
                   </Label>
                   <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11">
                       <SelectValue placeholder="Selecionar paciente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos os pacientes (Atual)</SelectItem>
+                      <SelectItem value="all">Todos os pacientes</SelectItem>
                       {patients && patients.map((patient) => (
                         <SelectItem key={patient.id} value={patient.id || ""}>
                           {patient.name}
@@ -371,12 +443,15 @@ export default function Reports() {
                 </div>
 
                 {/* Date Range */}
-                <div className="space-y-2">
-                  <Label>Período</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2.5">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-primary" />
+                    Período
+                  </Label>
+                  <div className="grid grid-cols-2 gap-3">
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left">
+                        <Button variant="outline" className="w-full justify-start text-left h-11">
                           <CalendarIcon className="w-4 h-4 mr-2" />
                           {startDate ? format(startDate, "dd/MM/yy") : "Início"}
                         </Button>
@@ -392,7 +467,7 @@ export default function Reports() {
                     </Popover>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left">
+                        <Button variant="outline" className="w-full justify-start text-left h-11">
                           <CalendarIcon className="w-4 h-4 mr-2" />
                           {endDate ? format(endDate, "dd/MM/yy") : "Fim"}
                         </Button>
@@ -410,55 +485,68 @@ export default function Reports() {
                 </div>
 
                 {/* Options */}
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="charts"
-                      checked={includeCharts}
-                      onCheckedChange={(checked) => setIncludeCharts(!!checked)}
-                    />
-                    <Label htmlFor="charts" className="text-sm">
-                      Incluir gráficos
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="recommendations"
-                      checked={includeRecommendations}
-                      onCheckedChange={(checked) => setIncludeRecommendations(!!checked)}
-                    />
-                    <Label htmlFor="recommendations" className="text-sm">
-                      Incluir recomendações IA
-                    </Label>
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Opções</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <Checkbox
+                        id="charts"
+                        checked={includeCharts}
+                        onCheckedChange={(checked) => setIncludeCharts(!!checked)}
+                      />
+                      <Label htmlFor="charts" className="text-sm cursor-pointer flex-1">
+                        Incluir gráficos e visualizações
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <Checkbox
+                        id="recommendations"
+                        checked={includeRecommendations}
+                        onCheckedChange={(checked) => setIncludeRecommendations(!!checked)}
+                      />
+                      <Label htmlFor="recommendations" className="text-sm cursor-pointer flex-1">
+                        Incluir recomendações da IA
+                      </Label>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Export Buttons */}
-            <div className="glass-card rounded-2xl p-6">
-              <h2 className="font-display font-semibold mb-4">Exportar</h2>
+            <div className="glass-card rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                  <Download className="w-4 h-4 text-success" />
+                </div>
+                <h2 className="font-display font-semibold text-lg">Exportar</h2>
+              </div>
               <div className="space-y-3">
                 <Button
                   variant="neuro"
-                  className="w-full"
+                  className="w-full h-12 text-base font-semibold shadow-md hover:shadow-lg transition-all"
                   onClick={() => handleGenerate("pdf")}
                   disabled={isGenerating || loading}
                 >
                   {isGenerating ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Gerando...
+                    </>
                   ) : (
-                    <FileType className="w-4 h-4 mr-2" />
+                    <>
+                      <FileType className="w-5 h-5 mr-2" />
+                      Gerar PDF
+                    </>
                   )}
-                  Gerar PDF
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full h-12 text-base font-semibold border-2 hover:bg-muted/50 transition-all"
                   onClick={() => handleGenerate("csv")}
                   disabled={isGenerating || loading}
                 >
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  <FileSpreadsheet className="w-5 h-5 mr-2" />
                   Exportar CSV
                 </Button>
               </div>
@@ -467,91 +555,182 @@ export default function Reports() {
 
           {/* Preview Panel */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="glass-card rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg">
-                  Prévia do Relatório
-                </h2>
-                <Button variant="ghost" size="sm" onClick={() => handleGenerate("csv")}>
-                  <Download className="w-4 h-4 mr-2" />
+            <div className="glass-card rounded-2xl p-8 shadow-lg">
+              <div className="flex items-center justify-between mb-8 pb-4 border-b border-border">
+                <div>
+                  <h2 className="font-display font-semibold text-xl mb-1">
+                    Prévia do Relatório
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Visualize como o relatório será gerado
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleGenerate("pdf")}
+                  className="gap-2"
+                >
+                  <Download className="w-4 h-4" />
                   Download
                 </Button>
               </div>
 
               {/* Report Preview Content */}
-              <div className="border border-border rounded-xl p-6 bg-background/50">
-                {/* Header */}
-                <div className="text-center pb-6 border-b border-border mb-6">
-                  <div className="w-16 h-16 rounded-2xl bg-neuro-gradient flex items-center justify-center mx-auto mb-4">
-                    <Brain className="w-8 h-8 text-primary-foreground" />
-                  </div>
-                  <h3 className="font-display text-xl font-bold">NeuroDose</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Relatório de {reportTypes.find((r) => r.id === selectedReport)?.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Gerado em {format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                  </p>
-                </div>
-
+              <div className="border-2 border-border rounded-2xl p-8 bg-gradient-to-br from-background to-muted/20 shadow-inner">
                 {loading ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <span className="ml-2">Carregando dados...</span>
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+                    <span className="text-muted-foreground font-medium">Carregando dados...</span>
                   </div>
                 ) : (
                   <>
-                    {/* Summary Stats */}
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div className="text-center p-4 rounded-lg bg-muted/30">
-                        <p className="text-2xl font-display font-bold text-primary">{totalDoses}</p>
-                        <p className="text-xs text-muted-foreground">Doses Registradas</p>
+                    {/* Header */}
+                    <div className="text-center pb-8 border-b-2 border-border mb-8">
+                      <div className="w-20 h-20 rounded-2xl bg-neuro-gradient flex items-center justify-center mx-auto mb-5 shadow-lg">
+                        <Brain className="w-10 h-10 text-primary-foreground" />
                       </div>
-                      <div className="text-center p-4 rounded-lg bg-muted/30">
-                        <p className={cn("text-2xl font-display font-bold", avgEfficacy > 70 ? "text-success" : "text-warning")}>
-                          {avgEfficacy}%
+                      <h3 className="font-display text-2xl font-bold mb-2">NeuroDose Assist</h3>
+                      <p className="text-base text-muted-foreground font-medium">
+                        {reportTypes.find((r) => r.id === selectedReport)?.title}
+                      </p>
+                      <div className="mt-4 pt-4 border-t border-border/50">
+                        <p className="text-sm text-muted-foreground">
+                          Gerado em {format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
                         </p>
-                        <p className="text-xs text-muted-foreground">Eficácia Média</p>
+                        {selectedPatient !== 'all' && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Paciente: {patients.find(p => p.id === selectedPatient)?.name || 'N/A'}
+                          </p>
+                        )}
                       </div>
-                      <div className="text-center p-4 rounded-lg bg-muted/30">
-                        <p className="text-2xl font-display font-bold text-warning">
-                          {doses && doses.filter(d => d && d.subjectiveState && d.subjectiveState.mood < 5).length || 0}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Alertas de Humor</p>
+                    </div>
+
+                    {/* Summary Stats - Enhanced */}
+                    <div className="mb-8">
+                      <h4 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-primary" />
+                        Resumo Executivo
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-5 border border-primary/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Pill className="w-4 h-4 text-primary" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Doses</p>
+                          </div>
+                          <p className="text-3xl font-display font-bold text-primary">{totalDoses}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Registradas</p>
+                        </div>
+                        <div className={cn(
+                          "bg-gradient-to-br rounded-xl p-5 border",
+                          avgEfficacy > 70 
+                            ? "from-success/10 to-success/5 border-success/20" 
+                            : avgEfficacy > 50
+                            ? "from-warning/10 to-warning/5 border-warning/20"
+                            : "from-destructive/10 to-destructive/5 border-destructive/20"
+                        )}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Activity className={cn(
+                              "w-4 h-4",
+                              avgEfficacy > 70 ? "text-success" : avgEfficacy > 50 ? "text-warning" : "text-destructive"
+                            )} />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Eficácia</p>
+                          </div>
+                          <p className={cn(
+                            "text-3xl font-display font-bold",
+                            avgEfficacy > 70 ? "text-success" : avgEfficacy > 50 ? "text-warning" : "text-destructive"
+                          )}>
+                            {avgEfficacy}%
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Média geral</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-info/10 to-info/5 rounded-xl p-5 border border-info/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Brain className="w-4 h-4 text-info" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Humor</p>
+                          </div>
+                          <p className="text-3xl font-display font-bold text-info">{avgMood}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Média (1-10)</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-accent/10 to-accent/5 rounded-xl p-5 border border-accent/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Activity className="w-4 h-4 text-accent" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Energia</p>
+                          </div>
+                          <p className="text-3xl font-display font-bold text-accent">{avgEnergy}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Média (1-10)</p>
+                        </div>
                       </div>
                     </div>
 
                     {/* Chart Preview */}
                     {includeCharts && chartData.length > 0 && (
-                      <div className="mb-6">
-                        <h4 className="font-medium mb-4">Evolução da Eficácia</h4>
-                        <EfficacyChart data={chartData} className="border-0 p-0 bg-transparent" />
+                      <div className="mb-8">
+                        <h4 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
+                          <Activity className="w-5 h-5 text-primary" />
+                          Evolução da Eficácia
+                        </h4>
+                        <EfficacyChart data={chartData} className="border-0 p-0 bg-transparent shadow-none" />
                       </div>
                     )}
 
                     {includeCharts && chartData.length === 0 && (
-                      <div className="mb-6 text-center text-muted-foreground py-8 border rounded-lg border-dashed">
-                        Nenhum dado suficiente para gráficos no período selecionado.
+                      <div className="mb-8 text-center text-muted-foreground py-12 border-2 border-dashed rounded-xl bg-muted/20">
+                        <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p className="font-medium">Nenhum dado suficiente para gráficos</p>
+                        <p className="text-sm mt-1">no período selecionado.</p>
                       </div>
                     )}
 
-                    {/* Recommendations Preview - keeping static for now as AI service integration is separate */}
+                    {/* Recommendations Preview */}
                     {includeRecommendations && (
-                      <div>
-                        <h4 className="font-medium mb-4">Recomendações da IA</h4>
+                      <div className="mb-8">
+                        <h4 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
+                          <Brain className="w-5 h-5 text-primary" />
+                          Recomendações da IA
+                        </h4>
                         <div className="space-y-3">
-                          <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-                            <p className="text-sm font-medium text-success">Análise de Dados Reais</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Baseado em {totalDoses} registros. Continue registrando para melhores insights.
-                            </p>
+                          <div className="p-4 rounded-xl bg-success/10 border-2 border-success/20 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <Activity className="w-4 h-4 text-success" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-success mb-1">Análise de Dados Reais</p>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  Baseado em {totalDoses} registros analisados. Continue registrando doses para obter insights mais precisos e recomendações personalizadas.
+                                </p>
+                              </div>
+                            </div>
                           </div>
                           {avgEfficacy < 60 && totalDoses > 5 && (
-                            <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
-                              <p className="text-sm font-medium text-warning">Atenção à Eficácia</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                A eficácia média está abaixo de 60%. Considere revisar os horários das doses.
-                              </p>
+                            <div className="p-4 rounded-xl bg-warning/10 border-2 border-warning/20 shadow-sm">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-warning/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <Activity className="w-4 h-4 text-warning" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold text-warning mb-1">Atenção à Eficácia</p>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">
+                                    A eficácia média está abaixo de 60%. Considere revisar os horários das doses, ajustar a dosagem ou consultar um profissional de saúde.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {avgMood < 5 && totalDoses > 3 && (
+                            <div className="p-4 rounded-xl bg-destructive/10 border-2 border-destructive/20 shadow-sm">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-destructive/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <Activity className="w-4 h-4 text-destructive" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold text-destructive mb-1">Monitoramento de Humor</p>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">
+                                    O humor médio está abaixo do ideal. Recomenda-se acompanhamento próximo e possível ajuste no tratamento.
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -559,22 +738,37 @@ export default function Reports() {
                     )}
 
                     {/* Medications List */}
-                    {selectedReport === "medications" || selectedReport === "complete" ? (
-                      <div className="mt-8">
-                        <h4 className="font-medium mb-4">Medicamentos Ativos</h4>
+                    {(selectedReport === "medications" || selectedReport === "complete") && (
+                      <div className="mt-8 pt-8 border-t-2 border-border">
+                        <h4 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
+                          <Pill className="w-5 h-5 text-primary" />
+                          Medicamentos Ativos
+                        </h4>
                         <div className="space-y-2">
                           {medications && medications.length > 0 ? medications.map(med => (
-                            <div key={med.id} className="flex justify-between p-3 bg-muted/20 rounded-lg text-sm">
-                              <span>{med.name} ({med.brandName})</span>
-                              {/* Fixed doseAmount error */}
-                              <span className="text-muted-foreground">{med.minDose}-{med.maxDose}{med.unit}</span>
+                            <div key={med.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50 hover:bg-muted/50 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                  <Pill className="w-5 h-5 text-primary" />
+                                </div>
+                                <div>
+                                  <span className="font-medium text-sm">{med.name}</span>
+                                  <p className="text-xs text-muted-foreground">{med.brandName}</p>
+                                </div>
+                              </div>
+                              <span className="text-sm font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-lg">
+                                {med.minDose}-{med.maxDose}{med.unit}
+                              </span>
                             </div>
                           )) : (
-                            <p className="text-sm text-muted-foreground">Nenhum medicamento cadastrado.</p>
+                            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-xl bg-muted/20">
+                              <Pill className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                              <p className="text-sm font-medium">Nenhum medicamento cadastrado.</p>
+                            </div>
                           )}
                         </div>
                       </div>
-                    ) : null}
+                    )}
                   </>
                 )}
               </div>

@@ -15,83 +15,86 @@ import History from "./pages/History";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dose"
-                element={
-                  <ProtectedRoute>
-                    <DoseRegister />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/patients"
-                element={
-                  <ProtectedRoute>
-                    <Patients />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/medications"
-                element={
-                  <ProtectedRoute>
-                    <Medications />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/history"
-                element={
-                  <ProtectedRoute>
-                    <History />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/reports"
-                element={
-                  <ProtectedRoute>
-                    <Reports />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Index />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dose"
+                  element={
+                    <ProtectedRoute>
+                      <DoseRegister />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/patients"
+                  element={
+                    <ProtectedRoute>
+                      <Patients />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/medications"
+                  element={
+                    <ProtectedRoute>
+                      <Medications />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/history"
+                  element={
+                    <ProtectedRoute>
+                      <History />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={
+                    <ProtectedRoute>
+                      <Reports />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

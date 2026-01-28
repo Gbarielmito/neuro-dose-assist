@@ -338,225 +338,207 @@ export default function Patients() {
             </div>
           </div>
 
+
+
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
-            >
-              {theme === "dark" ? (
-                <>
-                  <Sun className="w-4 h-4 mr-2" aria-hidden="true" />
-                  Modo Claro
-                </>
-              ) : (
-                <>
-                  <Moon className="w-4 h-4 mr-2" aria-hidden="true" />
-                  Modo Escuro
-                </>
-              )}
-            </Button>
-
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm(); // Resetar ao fechar se não salvou
-          }}>
-            <DialogTrigger asChild>
-              <Button variant="neuro" onClick={resetForm} className="h-11">
-                <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
-                Novo Paciente
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="font-display">
-                  {editingPatient ? "Editar Paciente" : "Cadastrar Paciente"}
-                </DialogTitle>
-                <DialogDescription>
-                  {editingPatient ? "Atualize os dados do paciente" : "Preencha os dados do novo paciente"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                {/* Upload de Foto */}
-                <div className="space-y-2">
-                  <Label htmlFor="photo-upload">Foto do Paciente</Label>
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      {photoPreview ? (
-                        <Avatar className="w-20 h-20">
-                          <AvatarImage src={photoPreview} alt="Foto do paciente" />
-                          <AvatarFallback>
-                            <User className="w-10 h-10" aria-hidden="true" />
-                          </AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                          <ImageIcon className="w-10 h-10 text-muted-foreground" aria-hidden="true" />
-                        </div>
-                      )}
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm(); // Resetar ao fechar se não salvou
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="neuro" onClick={resetForm} className="h-11">
+                  <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
+                  Novo Paciente
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-display">
+                    {editingPatient ? "Editar Paciente" : "Cadastrar Paciente"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editingPatient ? "Atualize os dados do paciente" : "Preencha os dados do novo paciente"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  {/* Upload de Foto */}
+                  <div className="space-y-2">
+                    <Label htmlFor="photo-upload">Foto do Paciente</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        {photoPreview ? (
+                          <Avatar className="w-20 h-20">
+                            <AvatarImage src={photoPreview} alt="Foto do paciente" />
+                            <AvatarFallback>
+                              <User className="w-10 h-10" aria-hidden="true" />
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                            <ImageIcon className="w-10 h-10 text-muted-foreground" aria-hidden="true" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoChange}
+                          className="hidden"
+                          id="photo-upload"
+                          name="photoUpload"
+                        />
+                        <Label
+                          htmlFor="photo-upload"
+                          className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-input rounded-md hover:bg-accent"
+                        >
+                          <Upload className="w-4 h-4" aria-hidden="true" />
+                          {photoFile ? "Alterar Foto" : "Adicionar Foto"}
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          JPG, PNG ou GIF. Máximo 5MB.
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1">
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="patient-name">Nome Completo *</Label>
                       <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoChange}
-                        className="hidden"
-                        id="photo-upload"
-                        name="photoUpload"
+                        id="patient-name"
+                        name="patientName"
+                        autoComplete="name"
+                        placeholder="Nome do paciente…"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        className="h-11"
                       />
-                      <Label
-                        htmlFor="photo-upload"
-                        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-input rounded-md hover:bg-accent"
-                      >
-                        <Upload className="w-4 h-4" aria-hidden="true" />
-                        {photoFile ? "Alterar Foto" : "Adicionar Foto"}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        JPG, PNG ou GIF. Máximo 5MB.
-                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="patient-age">Idade *</Label>
+                      <Input
+                        id="patient-age"
+                        name="patientAge"
+                        type="number"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        placeholder="Ex.: 32…"
+                        value={formData.age}
+                        onChange={(e) =>
+                          setFormData({ ...formData, age: e.target.value })
+                        }
+                        className="h-11 tabular-nums"
+                      />
                     </div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="patient-gender">Gênero *</Label>
+                      <Select
+                        value={formData.gender}
+                        onValueChange={(value) =>
+                          setFormData({
+                            ...formData,
+                            gender: value as "Masculino" | "Feminino" | "Outro",
+                          })
+                        }
+                      >
+                        <SelectTrigger id="patient-gender" className="h-11">
+                          <SelectValue placeholder="Selecione…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Masculino">Masculino</SelectItem>
+                          <SelectItem value="Feminino">Feminino</SelectItem>
+                          <SelectItem value="Outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="patient-condition">Condição Principal *</Label>
+                      <Input
+                        id="patient-condition"
+                        name="patientCondition"
+                        autoComplete="off"
+                        placeholder="Ex.: TDAH, depressão…"
+                        value={formData.condition}
+                        onChange={(e) =>
+                          setFormData({ ...formData, condition: e.target.value })
+                        }
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="patient-name">Nome Completo *</Label>
-                    <Input
-                      id="patient-name"
-                      name="patientName"
-                      autoComplete="name"
-                      placeholder="Nome do paciente…"
-                      value={formData.name}
+                    <Label htmlFor="patient-history">Histórico Clínico</Label>
+                    <Textarea
+                      id="patient-history"
+                      name="patientClinicalHistory"
+                      autoComplete="off"
+                      placeholder="Descreva o histórico clínico relevante…"
+                      rows={3}
+                      value={formData.clinicalHistory}
                       onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
+                        setFormData({ ...formData, clinicalHistory: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="patient-allergies">Sensibilidades / Alergias</Label>
+                    <Input
+                      id="patient-allergies"
+                      name="patientAllergies"
+                      autoComplete="off"
+                      placeholder="Liste sensibilidades conhecidas…"
+                      value={formData.allergies}
+                      onChange={(e) =>
+                        setFormData({ ...formData, allergies: e.target.value })
                       }
                       className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="patient-age">Idade *</Label>
-                    <Input
-                      id="patient-age"
-                      name="patientAge"
-                      type="number"
-                      inputMode="numeric"
+                    <Label htmlFor="patient-current-meds">Medicamentos em Uso</Label>
+                    <Textarea
+                      id="patient-current-meds"
+                      name="patientCurrentMedications"
                       autoComplete="off"
-                      placeholder="Ex.: 32…"
-                      value={formData.age}
+                      placeholder="Liste os medicamentos atuais…"
+                      rows={2}
+                      value={formData.currentMedications}
                       onChange={(e) =>
-                        setFormData({ ...formData, age: e.target.value })
+                        setFormData({ ...formData, currentMedications: e.target.value })
                       }
-                      className="h-11 tabular-nums"
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="patient-gender">Gênero *</Label>
-                    <Select
-                      value={formData.gender}
-                      onValueChange={(value) =>
-                        setFormData({
-                          ...formData,
-                          gender: value as "Masculino" | "Feminino" | "Outro",
-                        })
-                      }
-                    >
-                      <SelectTrigger id="patient-gender" className="h-11">
-                        <SelectValue placeholder="Selecione…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Masculino">Masculino</SelectItem>
-                        <SelectItem value="Feminino">Feminino</SelectItem>
-                        <SelectItem value="Outro">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="patient-condition">Condição Principal *</Label>
-                    <Input
-                      id="patient-condition"
-                      name="patientCondition"
-                      autoComplete="off"
-                      placeholder="Ex.: TDAH, depressão…"
-                      value={formData.condition}
-                      onChange={(e) =>
-                        setFormData({ ...formData, condition: e.target.value })
-                      }
-                      className="h-11"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="patient-history">Histórico Clínico</Label>
-                  <Textarea
-                    id="patient-history"
-                    name="patientClinicalHistory"
-                    autoComplete="off"
-                    placeholder="Descreva o histórico clínico relevante…"
-                    rows={3}
-                    value={formData.clinicalHistory}
-                    onChange={(e) =>
-                      setFormData({ ...formData, clinicalHistory: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="patient-allergies">Sensibilidades / Alergias</Label>
-                  <Input
-                    id="patient-allergies"
-                    name="patientAllergies"
-                    autoComplete="off"
-                    placeholder="Liste sensibilidades conhecidas…"
-                    value={formData.allergies}
-                    onChange={(e) =>
-                      setFormData({ ...formData, allergies: e.target.value })
-                    }
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsDialogOpen(false)}
+                    disabled={saving}
                     className="h-11"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="patient-current-meds">Medicamentos em Uso</Label>
-                  <Textarea
-                    id="patient-current-meds"
-                    name="patientCurrentMedications"
-                    autoComplete="off"
-                    placeholder="Liste os medicamentos atuais…"
-                    rows={2}
-                    value={formData.currentMedications}
-                    onChange={(e) =>
-                      setFormData({ ...formData, currentMedications: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                  disabled={saving}
-                  className="h-11"
-                >
-                  Cancelar
-                </Button>
-                <Button variant="neuro" onClick={handleSavePatient} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Salvando…
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
-                      {editingPatient ? "Atualizar" : "Cadastrar"}
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                  >
+                    Cancelar
+                  </Button>
+                  <Button variant="neuro" onClick={handleSavePatient} disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando…
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
+                        {editingPatient ? "Atualizar" : "Cadastrar"}
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Dialog de Visualização de Perfil */}
@@ -820,6 +802,6 @@ export default function Patients() {
           </div>
         )}
       </div>
-    </MainLayout>
+    </MainLayout >
   );
 }

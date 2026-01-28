@@ -30,8 +30,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("AuthProvider initialized");
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? "User logged in" : "No user");
       setUser(user);
+      setLoading(false);
+    }, (error) => {
+      console.error("Auth state change error:", error);
       setLoading(false);
     });
 
@@ -50,10 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error.code === "auth/user-not-found"
           ? "Usuário não encontrado."
           : error.code === "auth/wrong-password"
-          ? "Senha incorreta."
-          : error.code === "auth/invalid-email"
-          ? "Email inválido."
-          : "Erro ao fazer login. Tente novamente.";
+            ? "Senha incorreta."
+            : error.code === "auth/invalid-email"
+              ? "Email inválido."
+              : "Erro ao fazer login. Tente novamente.";
       toast({
         title: "Erro ao fazer login",
         description: errorMessage,
@@ -75,10 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error.code === "auth/email-already-in-use"
           ? "Este email já está em uso."
           : error.code === "auth/weak-password"
-          ? "A senha deve ter pelo menos 6 caracteres."
-          : error.code === "auth/invalid-email"
-          ? "Email inválido."
-          : "Erro ao criar conta. Tente novamente.";
+            ? "A senha deve ter pelo menos 6 caracteres."
+            : error.code === "auth/invalid-email"
+              ? "Email inválido."
+              : "Erro ao criar conta. Tente novamente.";
       toast({
         title: "Erro ao criar conta",
         description: errorMessage,
@@ -98,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("Erro no login com Google:", error);
       let errorMessage = "Erro ao fazer login com Google. Tente novamente.";
-      
+
       if (error.code === "auth/popup-closed-by-user") {
         errorMessage = "Login cancelado.";
       } else if (error.code === "auth/popup-blocked") {
@@ -113,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "Erro ao fazer login",
         description: errorMessage,
@@ -151,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Atualizar a senha
       await updatePassword(user, newPassword);
-      
+
       toast({
         title: "Senha atualizada com sucesso!",
         description: "Sua senha foi alterada.",
@@ -161,10 +166,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error.code === "auth/wrong-password"
           ? "Senha atual incorreta."
           : error.code === "auth/weak-password"
-          ? "A nova senha deve ter pelo menos 6 caracteres."
-          : error.code === "auth/requires-recent-login"
-          ? "Por segurança, faça login novamente antes de alterar a senha."
-          : "Erro ao atualizar senha. Tente novamente.";
+            ? "A nova senha deve ter pelo menos 6 caracteres."
+            : error.code === "auth/requires-recent-login"
+              ? "Por segurança, faça login novamente antes de alterar a senha."
+              : "Erro ao atualizar senha. Tente novamente.";
       toast({
         title: "Erro ao atualizar senha",
         description: errorMessage,

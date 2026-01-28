@@ -11,6 +11,7 @@ export function QuickActions() {
       description: "Nova entrada",
       href: "/dose",
       gradient: "from-teal-500 to-cyan-500",
+      iconColor: "text-teal-600 dark:text-teal-400",
       bgGlow: "bg-teal-500/20",
       primary: true,
     },
@@ -20,6 +21,7 @@ export function QuickActions() {
       description: "Recomendações",
       href: "/dose",
       gradient: "from-violet-500 to-purple-500",
+      iconColor: "text-violet-600 dark:text-violet-400",
       bgGlow: "bg-violet-500/10",
     },
     {
@@ -28,6 +30,7 @@ export function QuickActions() {
       description: "Ver registros",
       href: "/history",
       gradient: "from-blue-500 to-indigo-500",
+      iconColor: "text-blue-600 dark:text-blue-400",
       bgGlow: "bg-blue-500/10",
     },
     {
@@ -36,6 +39,7 @@ export function QuickActions() {
       description: "Exportar PDF",
       href: "/reports",
       gradient: "from-amber-500 to-orange-500",
+      iconColor: "text-amber-600 dark:text-amber-400",
       bgGlow: "bg-amber-500/10",
     },
   ];
@@ -67,16 +71,8 @@ export function QuickActions() {
             )}>
               <action.icon className={cn(
                 "w-5 h-5 sm:w-6 sm:h-6",
-                action.primary
-                  ? "text-white"
-                  : `bg-gradient-to-br ${action.gradient} bg-clip-text text-transparent`
-              )}
-                style={!action.primary ? {
-                  background: `linear-gradient(to bottom right, var(--tw-gradient-from), var(--tw-gradient-to))`,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                } : undefined}
-              />
+                action.primary ? "text-white" : action.iconColor
+              )} />
             </div>
 
             {/* Text */}

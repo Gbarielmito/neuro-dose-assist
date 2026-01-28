@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { ModeToggle } from "@/components/mode-toggle";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -62,6 +63,9 @@ export function Header({ onMenuClick }: HeaderProps) {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="w-5 h-5" />
         </Button>
+
+        {/* Mode Toggle */}
+        <ModeToggle />
 
         {/* AI Status */}
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">

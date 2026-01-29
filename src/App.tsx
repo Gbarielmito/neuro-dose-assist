@@ -14,6 +14,8 @@ import Medications from "./pages/Medications";
 import History from "./pages/History";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Appointments from "./pages/Appointments";
+import ClinicPage from "./pages/Clinic";
 import NotFound from "./pages/NotFound";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
@@ -55,6 +57,14 @@ const App = () => (
                   }
                 />
                 <Route
+                  path="/appointments"
+                  element={
+                    <ProtectedRoute>
+                      <Appointments />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/medications"
                   element={
                     <ProtectedRoute>
@@ -83,6 +93,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/clinic"
+                  element={
+                    <ProtectedRoute>
+                      <ClinicPage />
                     </ProtectedRoute>
                   }
                 />

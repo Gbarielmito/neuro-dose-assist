@@ -459,12 +459,12 @@ export default function History() {
                     activeTab !== "all"
                       ? (activeTab as keyof typeof typeConfig)
                       : hasRisk
-                      ? "alert"
-                      : hasSymptoms
-                      ? "symptom"
-                      : hasRecommendation
-                      ? "recommendation"
-                      : "dose";
+                        ? "alert"
+                        : hasSymptoms
+                          ? "symptom"
+                          : hasRecommendation
+                            ? "recommendation"
+                            : "dose";
 
                   const config = typeConfig[inferredType] || typeConfig.dose;
                   const Icon = config.icon;

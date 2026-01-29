@@ -47,10 +47,10 @@
     /* Extended palette for medical UI */
     --success: 158 64% 42%;
     --success-foreground: 0 0% 100%;
-    
+
     --warning: 38 95% 55%;
     --warning-foreground: 38 100% 15%;
-    
+
     --info: 210 100% 55%;
     --info-foreground: 0 0% 100%;
 
@@ -136,36 +136,38 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     @apply tracking-tight;
   }
 }
 
 @layer components {
+
   /* Neuro gradient backgrounds */
   .bg-neuro-gradient {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--gradient-start)) 0%,
-      hsl(var(--gradient-mid)) 50%,
-      hsl(var(--gradient-end)) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--gradient-start)) 0%,
+        hsl(var(--gradient-mid)) 50%,
+        hsl(var(--gradient-end)) 100%);
   }
 
   .bg-neuro-gradient-subtle {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--gradient-start) / 0.1) 0%,
-      hsl(var(--gradient-mid) / 0.05) 50%,
-      hsl(var(--gradient-end) / 0.1) 100%
-    );
+    background: linear-gradient(135deg,
+        hsl(var(--gradient-start) / 0.1) 0%,
+        hsl(var(--gradient-mid) / 0.05) 50%,
+        hsl(var(--gradient-end) / 0.1) 100%);
   }
 
   /* Glass effect for cards */
   .glass-card {
     @apply bg-card/95 backdrop-blur-xl border border-border/50;
-    box-shadow: 
+    box-shadow:
       0 4px 6px -1px hsl(var(--primary) / 0.03),
       0 2px 4px -2px hsl(var(--primary) / 0.03),
       inset 0 1px 0 hsl(0 0% 100% / 0.05);
@@ -173,7 +175,7 @@
 
   .dark .glass-card {
     @apply bg-card/80;
-    box-shadow: 
+    box-shadow:
       0 4px 6px -1px hsl(0 0% 0% / 0.2),
       0 2px 4px -2px hsl(0 0% 0% / 0.1),
       inset 0 1px 0 hsl(0 0% 100% / 0.03);
@@ -227,19 +229,29 @@
 
   /* Animations */
   @keyframes pulse-glow {
-    0%, 100% { 
+
+    0%,
+    100% {
       opacity: 1;
       box-shadow: 0 0 8px hsl(var(--success) / 0.6);
     }
-    50% { 
+
+    50% {
       opacity: 0.8;
       box-shadow: 0 0 12px hsl(var(--success) / 0.4);
     }
   }
 
   @keyframes subtle-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.7;
+    }
   }
 
   .live-indicator {
@@ -252,6 +264,7 @@
       opacity: 0;
       transform: translateY(10px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -264,12 +277,29 @@
   }
 
   /* Stagger animation delays */
-  .stagger-1 { animation-delay: 0.05s; }
-  .stagger-2 { animation-delay: 0.1s; }
-  .stagger-3 { animation-delay: 0.15s; }
-  .stagger-4 { animation-delay: 0.2s; }
-  .stagger-5 { animation-delay: 0.25s; }
-  .stagger-6 { animation-delay: 0.3s; }
+  .stagger-1 {
+    animation-delay: 0.05s;
+  }
+
+  .stagger-2 {
+    animation-delay: 0.1s;
+  }
+
+  .stagger-3 {
+    animation-delay: 0.15s;
+  }
+
+  .stagger-4 {
+    animation-delay: 0.2s;
+  }
+
+  .stagger-5 {
+    animation-delay: 0.25s;
+  }
+
+  .stagger-6 {
+    animation-delay: 0.3s;
+  }
 }
 
 /* Custom scrollbar */
@@ -317,15 +347,31 @@
 
   /* Hide on mobile/show on desktop utilities */
   @screen xs {
-    .xs\:block { display: block; }
-    .xs\:hidden { display: none; }
+    .xs\:block {
+      display: block;
+    }
+
+    .xs\:hidden {
+      display: none;
+    }
   }
 }
 
 /* Extra small breakpoint */
 @media (min-width: 475px) {
-  .xs\:block { display: block; }
-  .xs\:flex { display: flex; }
-  .xs\:hidden { display: none; }
-  .xs\:inline { display: inline; }
+  .xs\:block {
+    display: block;
+  }
+
+  .xs\:flex {
+    display: flex;
+  }
+
+  .xs\:hidden {
+    display: none;
+  }
+
+  .xs\:inline {
+    display: inline;
+  }
 }

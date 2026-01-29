@@ -13,6 +13,8 @@ import {
   ChevronRight,
   LogOut,
   X,
+  Calendar,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,10 +22,12 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Pacientes", href: "/patients", icon: Users },
+  { name: "Agenda", href: "/appointments", icon: Calendar },
   { name: "Medicamentos", href: "/medications", icon: Pill },
   { name: "Registrar Dose", href: "/dose", icon: Activity },
   { name: "Histórico", href: "/history", icon: History },
   { name: "Relatórios", href: "/reports", icon: FileText },
+  { name: "Clínica", href: "/clinic", icon: Building2 },
 ];
 
 const secondaryNavigation = [

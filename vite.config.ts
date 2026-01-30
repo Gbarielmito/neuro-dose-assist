@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8081,
     hmr: {
       overlay: false,
     },
@@ -16,6 +16,12 @@ export default defineConfig(({ mode }) => ({
       "Pragma": "no-cache",
       "Expires": "0",
     },
+    watch: {
+      usePolling: true, // Força polling para detectar mudanças
+    },
+  },
+  optimizeDeps: {
+    force: true, // Força re-bundle das dependências
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
@@ -24,3 +30,4 @@ export default defineConfig(({ mode }) => ({
     },
   },
 }));
+

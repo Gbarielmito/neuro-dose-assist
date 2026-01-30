@@ -15,6 +15,7 @@ import {
   X,
   Calendar,
   Building2,
+  LineChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ const navigation = [
   { name: "Medicamentos", href: "/medications", icon: Pill },
   { name: "Registrar Dose", href: "/dose", icon: Activity },
   { name: "Histórico", href: "/history", icon: History },
+  { name: "Analytics", href: "/analytics", icon: LineChart },
   { name: "Relatórios", href: "/reports", icon: FileText },
   { name: "Clínica", href: "/clinic", icon: Building2 },
 ];

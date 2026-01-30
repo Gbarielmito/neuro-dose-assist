@@ -16,6 +16,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Appointments from "./pages/Appointments";
 import ClinicPage from "./pages/Clinic";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
@@ -101,6 +102,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <ClinicPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <Analytics />
                     </ProtectedRoute>
                   }
                 />

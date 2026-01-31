@@ -121,7 +121,10 @@ export default function DoseRegister() {
           analysis: result,
           timestamp: new Date().toISOString(),
           createdAt: new Date().toISOString()
-        }, user.uid);
+        }, user.uid,
+          { patientName: selectedPatient?.name, medicationName: selectedMedication?.name },
+          { name: user.displayName || undefined, email: user.email || undefined }
+        );
 
         setShowResult(true);
         toast({
@@ -227,336 +230,336 @@ export default function DoseRegister() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Main form */}
             <div className="lg:col-span-8 glass-card rounded-2xl p-6 sm:p-8">
-            {/* Step 1: Dose Info */}
-            {step === 1 && (
-              <div className="space-y-6 animate-fade-up">
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Pill className="w-5 h-5 text-primary" aria-hidden="true" />
+              {/* Step 1: Dose Info */}
+              {step === 1 && (
+                <div className="space-y-6 animate-fade-up">
+                  <div className="flex items-center gap-3 pb-4 border-b border-border">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Pill className="w-5 h-5 text-primary" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h2 className="font-display font-semibold text-lg">
+                        Informações da Dose
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Selecione paciente, medicamento e contexto da dose
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="font-display font-semibold text-lg">
-                      Informações da Dose
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Selecione paciente, medicamento e contexto da dose
-                    </p>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="patientId">Paciente</Label>
-                    <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
-                      <SelectTrigger id="patientId" className="h-11">
-                        <SelectValue placeholder={loadingData ? "Carregando…" : "Selecione…"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {patients.length > 0 ? (
-                          patients.map((p) => (
-                            <SelectItem key={p.id} value={p.id || "unknown"}>
-                              {p.name}, {p.age} anos
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="patientId">Paciente</Label>
+                      <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
+                        <SelectTrigger id="patientId" className="h-11">
+                          <SelectValue placeholder={loadingData ? "Carregando…" : "Selecione…"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {patients.length > 0 ? (
+                            patients.map((p) => (
+                              <SelectItem key={p.id} value={p.id || "unknown"}>
+                                {p.name}, {p.age} anos
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="none" disabled>
+                              {loadingData ? "Carregando…" : "Nenhum paciente cadastrado"}
                             </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="none" disabled>
-                            {loadingData ? "Carregando…" : "Nenhum paciente cadastrado"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="medicationId">Medicamento</Label>
-                    <Select value={selectedMedicationId} onValueChange={setSelectedMedicationId}>
-                      <SelectTrigger id="medicationId" className="h-11">
-                        <SelectValue placeholder={loadingData ? "Carregando…" : "Selecione…"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {medications.length > 0 ? (
-                          medications.map((m) => (
-                            <SelectItem key={m.id} value={m.id || "unknown"}>
-                              {m.name} ({m.brandName})
+                    <div className="space-y-2">
+                      <Label htmlFor="medicationId">Medicamento</Label>
+                      <Select value={selectedMedicationId} onValueChange={setSelectedMedicationId}>
+                        <SelectTrigger id="medicationId" className="h-11">
+                          <SelectValue placeholder={loadingData ? "Carregando…" : "Selecione…"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {medications.length > 0 ? (
+                            medications.map((m) => (
+                              <SelectItem key={m.id} value={m.id || "unknown"}>
+                                {m.name} ({m.brandName})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="none" disabled>
+                              {loadingData ? "Carregando…" : "Nenhum medicamento cadastrado"}
                             </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="none" disabled>
-                            {loadingData ? "Carregando…" : "Nenhum medicamento cadastrado"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="doseAmount">Dose (mg)</Label>
-                    <Input
-                      id="doseAmount"
-                      name="doseAmount"
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="any"
-                      autoComplete="off"
-                      placeholder="Ex.: 20…"
-                      value={doseAmount}
-                      onChange={(e) => setDoseAmount(e.target.value)}
-                      className="h-11"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Use o valor em mg (ex.: 20). Evite texto.
-                    </p>
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="doseAmount">Dose (mg)</Label>
+                      <Input
+                        id="doseAmount"
+                        name="doseAmount"
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step="any"
+                        autoComplete="off"
+                        placeholder="Ex.: 20…"
+                        value={doseAmount}
+                        onChange={(e) => setDoseAmount(e.target.value)}
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use o valor em mg (ex.: 20). Evite texto.
+                      </p>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="adminForm">Forma de Administração</Label>
-                    <Select value={adminForm} onValueChange={setAdminForm}>
-                      <SelectTrigger id="adminForm" className="h-11">
-                        <SelectValue placeholder="Selecione…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="oral">Oral</SelectItem>
-                        <SelectItem value="sublingual">Sublingual</SelectItem>
-                        <SelectItem value="injection">Injetável</SelectItem>
-                        <SelectItem value="topical">Tópico</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="adminForm">Forma de Administração</Label>
+                      <Select value={adminForm} onValueChange={setAdminForm}>
+                        <SelectTrigger id="adminForm" className="h-11">
+                          <SelectValue placeholder="Selecione…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="oral">Oral</SelectItem>
+                          <SelectItem value="sublingual">Sublingual</SelectItem>
+                          <SelectItem value="injection">Injetável</SelectItem>
+                          <SelectItem value="topical">Tópico</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="doseTime">Horário</Label>
-                    <Input
-                      id="doseTime"
-                      name="doseTime"
-                      type="time"
-                      autoComplete="off"
-                      value={doseTime}
-                      onChange={(e) => setDoseTime(e.target.value)}
-                      className="h-11"
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="doseTime">Horário</Label>
+                      <Input
+                        id="doseTime"
+                        name="doseTime"
+                        type="time"
+                        autoComplete="off"
+                        value={doseTime}
+                        onChange={(e) => setDoseTime(e.target.value)}
+                        className="h-11"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="indication">Indicação</Label>
-                    <Input
-                      id="indication"
-                      name="indication"
-                      autoComplete="off"
-                      placeholder="Ex.: TDAH, depressão…"
-                      value={indication}
-                      onChange={(e) => setIndication(e.target.value)}
-                      className="h-11"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Informe o motivo clínico (uma ou mais condições).
-                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="indication">Indicação</Label>
+                      <Input
+                        id="indication"
+                        name="indication"
+                        autoComplete="off"
+                        placeholder="Ex.: TDAH, depressão…"
+                        value={indication}
+                        onChange={(e) => setIndication(e.target.value)}
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Informe o motivo clínico (uma ou mais condições).
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Step 2: Subjective State */}
-            {step === 2 && (
-              <div className="space-y-6 animate-fade-up">
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <User className="w-5 h-5 text-secondary-foreground" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <h2 className="font-display font-semibold text-lg">
-                      Estado Subjetivo
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Registre o estado atual para contextualizar a análise
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-8">
-                  {/* Mood */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Humor</Label>
-                      <span className="text-3xl" aria-hidden="true">{moods[mood[0] - 1]}</span>
+              {/* Step 2: Subjective State */}
+              {step === 2 && (
+                <div className="space-y-6 animate-fade-up">
+                  <div className="flex items-center gap-3 pb-4 border-b border-border">
+                    <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
+                      <User className="w-5 h-5 text-secondary-foreground" aria-hidden="true" />
                     </div>
-                    <Slider
-                      value={mood}
-                      onValueChange={setMood}
-                      min={1}
-                      max={5}
-                      step={1}
-                      className="py-4"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Muito baixo</span>
-                      <span>Neutro</span>
-                      <span>Ótimo</span>
+                    <div>
+                      <h2 className="font-display font-semibold text-lg">
+                        Estado Subjetivo
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Registre o estado atual para contextualizar a análise
+                      </p>
                     </div>
                   </div>
 
-                  {/* Energy */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Nível de Energia</Label>
-                      <span className="font-medium tabular-nums">{energy[0]}/10</span>
-                    </div>
-                    <Slider
-                      value={energy}
-                      onValueChange={setEnergy}
-                      min={0}
-                      max={10}
-                      step={1}
-                      className="py-4"
-                    />
-                  </div>
-
-                  {/* Sleep */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Qualidade do Sono (noite anterior)</Label>
-                      <span className="font-medium tabular-nums">{sleep[0]}/10</span>
-                    </div>
-                    <Slider
-                      value={sleep}
-                      onValueChange={setSleep}
-                      min={0}
-                      max={10}
-                      step={1}
-                      className="py-4"
-                    />
-                  </div>
-
-                  {/* Effects */}
-                  <div className="space-y-2">
-                    <Label htmlFor="effects">Efeitos Percebidos</Label>
-                    <Textarea
-                      id="effects"
-                      name="effects"
-                      autoComplete="off"
-                      placeholder="Descreva efeitos observados (se houver)…"
-                      rows={3}
-                      value={effects}
-                      onChange={(e) => setEffects(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Confirmation */}
-            {step === 3 && (
-              <div className="space-y-6 animate-fade-up">
-                <div className="flex items-center gap-3 pb-4 border-b border-border">
-                  <div className="w-10 h-10 rounded-xl bg-neuro-gradient flex items-center justify-center">
-                    <Brain className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <h2 className="font-display font-semibold text-lg">
-                      Confirmação e Análise IA
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Revise os dados antes de enviar para análise
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4 p-4 rounded-xl bg-muted/30">
-                    <h3 className="font-medium text-sm text-muted-foreground">
-                      Dados da Dose
-                    </h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Paciente</span>
-                        <span className="font-medium">
-                          {selectedPatient?.name || "Não selecionado"}
-                        </span>
+                  <div className="space-y-8">
+                    {/* Mood */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label>Humor</Label>
+                        <span className="text-3xl" aria-hidden="true">{moods[mood[0] - 1]}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Medicamento</span>
-                        <span className="font-medium">
-                          {selectedMedication?.name || "Não selecionado"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Dose</span>
-                        <span className="font-medium tabular-nums">{doseAmount || "-"} mg</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Horário</span>
-                        <span className="font-medium">{doseTime}</span>
+                      <Slider
+                        value={mood}
+                        onValueChange={setMood}
+                        min={1}
+                        max={5}
+                        step={1}
+                        className="py-4"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Muito baixo</span>
+                        <span>Neutro</span>
+                        <span>Ótimo</span>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-4 p-4 rounded-xl bg-muted/30">
-                    <h3 className="font-medium text-sm text-muted-foreground">
-                      Estado Subjetivo
-                    </h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Humor</span>
-                        <span className="text-xl" aria-hidden="true">{moods[mood[0] - 1]}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Energia</span>
+                    {/* Energy */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label>Nível de Energia</Label>
                         <span className="font-medium tabular-nums">{energy[0]}/10</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Sono</span>
+                      <Slider
+                        value={energy}
+                        onValueChange={setEnergy}
+                        min={0}
+                        max={10}
+                        step={1}
+                        className="py-4"
+                      />
+                    </div>
+
+                    {/* Sleep */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label>Qualidade do Sono (noite anterior)</Label>
                         <span className="font-medium tabular-nums">{sleep[0]}/10</span>
                       </div>
+                      <Slider
+                        value={sleep}
+                        onValueChange={setSleep}
+                        min={0}
+                        max={10}
+                        step={1}
+                        className="py-4"
+                      />
+                    </div>
+
+                    {/* Effects */}
+                    <div className="space-y-2">
+                      <Label htmlFor="effects">Efeitos Percebidos</Label>
+                      <Textarea
+                        id="effects"
+                        name="effects"
+                        autoComplete="off"
+                        placeholder="Descreva efeitos observados (se houver)…"
+                        rows={3}
+                        value={effects}
+                        onChange={(e) => setEffects(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
-
-                <div className="p-4 rounded-xl bg-neuro-gradient-subtle border border-primary/20">
-                  <div className="flex items-center gap-2 text-primary mb-2">
-                    <Sparkles className="w-4 h-4" aria-hidden="true" />
-                    <span className="text-sm font-medium">Análise de IA</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Ao confirmar, os dados serão enviados para o módulo de IA que
-                    irá prever a eficácia esperada e identificar possíveis riscos.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Navigation */}
-            <div className="flex items-center justify-between pt-6 mt-6 border-t border-border">
-              <Button
-                variant="ghost"
-                onClick={() => setStep(Math.max(1, step - 1))}
-                disabled={step === 1}
-              >
-                Voltar
-              </Button>
-              {step < 3 ? (
-                <Button
-                  variant="neuro"
-                  onClick={() => setStep(step + 1)}
-                  disabled={step === 1 ? !canContinueStep1 : false}
-                >
-                  Continuar
-                </Button>
-              ) : (
-                <Button variant="neuro" onClick={handleSubmit} disabled={isAnalyzing}>
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Analisando…
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="w-4 h-4 mr-2" aria-hidden="true" />
-                      Registrar e Analisar
-                    </>
-                  )}
-                </Button>
               )}
-            </div>
+
+              {/* Step 3: Confirmation */}
+              {step === 3 && (
+                <div className="space-y-6 animate-fade-up">
+                  <div className="flex items-center gap-3 pb-4 border-b border-border">
+                    <div className="w-10 h-10 rounded-xl bg-neuro-gradient flex items-center justify-center">
+                      <Brain className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h2 className="font-display font-semibold text-lg">
+                        Confirmação e Análise IA
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Revise os dados antes de enviar para análise
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4 p-4 rounded-xl bg-muted/30">
+                      <h3 className="font-medium text-sm text-muted-foreground">
+                        Dados da Dose
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Paciente</span>
+                          <span className="font-medium">
+                            {selectedPatient?.name || "Não selecionado"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Medicamento</span>
+                          <span className="font-medium">
+                            {selectedMedication?.name || "Não selecionado"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Dose</span>
+                          <span className="font-medium tabular-nums">{doseAmount || "-"} mg</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Horário</span>
+                          <span className="font-medium">{doseTime}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 p-4 rounded-xl bg-muted/30">
+                      <h3 className="font-medium text-sm text-muted-foreground">
+                        Estado Subjetivo
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Humor</span>
+                          <span className="text-xl" aria-hidden="true">{moods[mood[0] - 1]}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Energia</span>
+                          <span className="font-medium tabular-nums">{energy[0]}/10</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Sono</span>
+                          <span className="font-medium tabular-nums">{sleep[0]}/10</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-neuro-gradient-subtle border border-primary/20">
+                    <div className="flex items-center gap-2 text-primary mb-2">
+                      <Sparkles className="w-4 h-4" aria-hidden="true" />
+                      <span className="text-sm font-medium">Análise de IA</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Ao confirmar, os dados serão enviados para o módulo de IA que
+                      irá prever a eficácia esperada e identificar possíveis riscos.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex items-center justify-between pt-6 mt-6 border-t border-border">
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep(Math.max(1, step - 1))}
+                  disabled={step === 1}
+                >
+                  Voltar
+                </Button>
+                {step < 3 ? (
+                  <Button
+                    variant="neuro"
+                    onClick={() => setStep(step + 1)}
+                    disabled={step === 1 ? !canContinueStep1 : false}
+                  >
+                    Continuar
+                  </Button>
+                ) : (
+                  <Button variant="neuro" onClick={handleSubmit} disabled={isAnalyzing}>
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Analisando…
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-4 h-4 mr-2" aria-hidden="true" />
+                        Registrar e Analisar
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Side summary */}

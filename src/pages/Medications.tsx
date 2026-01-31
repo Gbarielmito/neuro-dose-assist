@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ import {
   type Medication,
 } from "@/lib/medications";
 import { toast } from "@/hooks/use-toast";
+import { checkInteractions, InteractionAlert } from "@/services/drugInteractions";
+import { InteractionAlertPanel } from "@/components/alerts/InteractionAlert";
 import {
   Dialog,
   DialogContent,
@@ -99,6 +101,18 @@ export default function Medications() {
   // Estados para filtro
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+
+  // Detectar interações medicamentosas
+  const interactionAlerts = useMemo(() => {
+    if (medications.length < 2) return [];
+    const alerts = checkInteractions(medications);
+    return alerts.filter(alert => !dismissedAlerts.includes(alert.id));
+  }, [medications, dismissedAlerts]);
+
+  const handleDismissAlert = (alertId: string) => {
+    setDismissedAlerts(prev => [...prev, alertId]);
+  };
 
   // Estados do formulário
   const [formData, setFormData] = useState({
@@ -239,7 +253,8 @@ export default function Medications() {
     if (!user || !medicationToDelete?.id) return;
 
     try {
-      await deleteMedication(medicationToDelete.id, user.uid);
+      const userInfo = { name: user.displayName || undefined, email: user.email || undefined };
+      await deleteMedication(medicationToDelete.id, user.uid, medicationToDelete.name, userInfo);
 
       toast({
         title: "Medicamento excluído",
@@ -330,7 +345,8 @@ export default function Medications() {
       };
 
       // Salvar medicamento no Realtime Database
-      await saveMedication(medicationData, user.uid);
+      const userInfo = { name: user.displayName || undefined, email: user.email || undefined };
+      await saveMedication(medicationData, user.uid, userInfo);
 
       toast({
         title: editingId ? "Medicamento atualizado!" : "Medicamento cadastrado!",
@@ -391,6 +407,16 @@ export default function Medications() {
               </p>
             </div>
           </div>
+
+          {/* Alertas de Interação Medicamentosa */}
+          {interactionAlerts.length > 0 && (
+            <div className="glass-card rounded-2xl p-6">
+              <InteractionAlertPanel
+                alerts={interactionAlerts}
+                onDismiss={handleDismissAlert}
+              />
+            </div>
+          )}
 
           <Dialog
             open={isDialogOpen}

@@ -1,6 +1,7 @@
 import { ref, push, set, get, remove, query, orderByChild } from "firebase/database";
 import { realtimeDb } from "./firebase";
 import { AnalysisResult, SubjectiveState } from "@/services/aiService";
+import { logActivity } from "./activityLog";
 
 export interface DoseRecord {
     id?: string;
@@ -16,7 +17,12 @@ export interface DoseRecord {
 }
 
 // Salvar nova dose
-export async function saveDose(dose: DoseRecord, userId: string): Promise<string> {
+export async function saveDose(
+    dose: DoseRecord,
+    userId: string,
+    doseInfo?: { patientName?: string; medicationName?: string },
+    userInfo?: { name?: string; email?: string }
+): Promise<string> {
     try {
         const dosesRef = ref(realtimeDb, `users/${userId}/doses`);
         const newDoseRef = push(dosesRef);
@@ -28,7 +34,20 @@ export async function saveDose(dose: DoseRecord, userId: string): Promise<string
         };
 
         await set(newDoseRef, doseData);
-        return newDoseRef.key || "";
+        const newId = newDoseRef.key || "";
+
+        // Registrar atividade
+        await logActivity({
+            action: 'create',
+            entityType: 'dose',
+            entityId: newId,
+            entityName: `${doseInfo?.medicationName || 'Medicamento'} ${dose.doseAmount}mg - ${doseInfo?.patientName || 'Paciente'}`,
+            userId,
+            userName: userInfo?.name,
+            userEmail: userInfo?.email,
+        });
+
+        return newId;
     } catch (error) {
         console.error("Erro ao salvar dose:", error);
         throw error;
@@ -57,10 +76,26 @@ export async function getDoses(userId: string): Promise<DoseRecord[]> {
 }
 
 // Deletar dose (opcional, para admin ou correção)
-export async function deleteDose(doseId: string, userId: string): Promise<void> {
+export async function deleteDose(
+    doseId: string,
+    userId: string,
+    doseName?: string,
+    userInfo?: { name?: string; email?: string }
+): Promise<void> {
     try {
         const doseRef = ref(realtimeDb, `users/${userId}/doses/${doseId}`);
         await remove(doseRef);
+
+        // Registrar atividade
+        await logActivity({
+            action: 'delete',
+            entityType: 'dose',
+            entityId: doseId,
+            entityName: doseName || 'Dose',
+            userId,
+            userName: userInfo?.name,
+            userEmail: userInfo?.email,
+        });
     } catch (error) {
         console.error("Erro ao deletar dose:", error);
         throw error;

@@ -1,5 +1,6 @@
 import { ref, push, set, get, remove } from "firebase/database";
 import { realtimeDb } from "./firebase";
+import { logActivity } from "./activityLog";
 
 export interface Medication {
   id?: string;
@@ -28,7 +29,11 @@ function removeUndefinedFields(obj: any): any {
 }
 
 // Salvar medicamento no Realtime Database
-export async function saveMedication(medication: Medication, userId: string): Promise<string> {
+export async function saveMedication(
+  medication: Medication,
+  userId: string,
+  userInfo?: { name?: string; email?: string }
+): Promise<string> {
   try {
     if (medication.id) {
       // Atualizar medicamento existente
@@ -45,12 +50,24 @@ export async function saveMedication(medication: Medication, userId: string): Pr
         updatedAt: new Date().toISOString(),
       });
       await set(medicationRef, updateData);
+
+      // Registrar atividade de atualização
+      await logActivity({
+        action: 'update',
+        entityType: 'medication',
+        entityId: medication.id,
+        entityName: medication.name,
+        userId,
+        userName: userInfo?.name,
+        userEmail: userInfo?.email,
+      });
+
       return medication.id;
     } else {
       // Criar novo medicamento
       const medicationsRef = ref(realtimeDb, `users/${userId}/medications`);
       const newMedicationRef = push(medicationsRef);
-      
+
       const medicationData = removeUndefinedFields({
         name: medication.name,
         brandName: medication.brandName,
@@ -66,23 +83,36 @@ export async function saveMedication(medication: Medication, userId: string): Pr
       });
 
       await set(newMedicationRef, medicationData);
-      return newMedicationRef.key || "";
+      const newId = newMedicationRef.key || "";
+
+      // Registrar atividade de criação
+      await logActivity({
+        action: 'create',
+        entityType: 'medication',
+        entityId: newId,
+        entityName: medication.name,
+        userId,
+        userName: userInfo?.name,
+        userEmail: userInfo?.email,
+      });
+
+      return newId;
     }
   } catch (error: any) {
     console.error("Erro ao salvar medicamento:", error);
-    
+
     // Melhorar mensagem de erro
     const errorCode = error?.code || "";
     const errorMessage = error?.message || "";
-    
+
     if (errorCode.includes("permission") || errorMessage.includes("permission")) {
       throw new Error("Permissão negada. Verifique as regras do Realtime Database no Firebase Console.");
     }
-    
+
     if (errorCode.includes("database") || errorMessage.includes("database")) {
       throw new Error("Realtime Database não está configurado. Configure no Firebase Console.");
     }
-    
+
     throw error;
   }
 }
@@ -107,7 +137,7 @@ export async function getMedications(userId: string): Promise<Medication[]> {
     // Verificar se é um erro de permissão ou configuração
     const errorCode = error?.code || "";
     const errorMessage = error?.message || "";
-    
+
     // Se for erro de permissão ou database não configurado, retornar array vazio silenciosamente
     if (
       errorCode.includes("permission") ||
@@ -119,7 +149,7 @@ export async function getMedications(userId: string): Promise<Medication[]> {
       console.warn("Realtime Database não configurado ou sem permissões. Retornando lista vazia.");
       return [];
     }
-    
+
     // Para outros erros, logar e lançar
     console.error("Erro ao buscar medicamentos:", error);
     throw error;
@@ -157,7 +187,7 @@ export async function updateMedication(
 ): Promise<void> {
   try {
     const medicationRef = ref(realtimeDb, `users/${userId}/medications/${medicationId}`);
-    
+
     const updateData = removeUndefinedFields({
       ...medication,
       updatedAt: new Date().toISOString(),
@@ -171,10 +201,26 @@ export async function updateMedication(
 }
 
 // Deletar medicamento
-export async function deleteMedication(medicationId: string, userId: string): Promise<void> {
+export async function deleteMedication(
+  medicationId: string,
+  userId: string,
+  medicationName?: string,
+  userInfo?: { name?: string; email?: string }
+): Promise<void> {
   try {
     const medicationRef = ref(realtimeDb, `users/${userId}/medications/${medicationId}`);
     await remove(medicationRef);
+
+    // Registrar atividade de exclusão
+    await logActivity({
+      action: 'delete',
+      entityType: 'medication',
+      entityId: medicationId,
+      entityName: medicationName || 'Medicamento',
+      userId,
+      userName: userInfo?.name,
+      userEmail: userInfo?.email,
+    });
   } catch (error) {
     console.error("Erro ao deletar medicamento:", error);
     throw error;

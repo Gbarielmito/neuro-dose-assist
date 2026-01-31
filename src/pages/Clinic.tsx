@@ -138,17 +138,27 @@ export default function ClinicPage() {
 
         try {
             setSaving(true);
-            await sendClinicInvite(
+            const result = await sendClinicInvite(
                 clinic.id,
                 clinic.name,
                 inviteEmail.trim(),
                 inviteRole,
-                user.uid
+                user.uid,
+                user.displayName || user.email || undefined
             );
-            toast({
-                title: "Convite enviado!",
-                description: `Convite enviado para ${inviteEmail}`,
-            });
+
+            if (result.emailSent) {
+                toast({
+                    title: "Convite enviado por email! 📧",
+                    description: `Um email de convite foi enviado para ${inviteEmail}`,
+                });
+            } else {
+                toast({
+                    title: "Convite criado!",
+                    description: `Convite para ${inviteEmail} foi salvo. Configure o EmailJS para enviar por email.`,
+                });
+            }
+
             setIsInviteDialogOpen(false);
             setInviteEmail("");
             setInviteRole("member");

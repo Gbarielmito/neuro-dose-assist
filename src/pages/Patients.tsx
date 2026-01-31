@@ -247,7 +247,8 @@ export default function Patients() {
 
       // Salvar (upsert)
       console.log("Chamando savePatient...");
-      const patientId = await savePatient(patientData, user.uid);
+      const userInfo = { name: user.displayName || undefined, email: user.email || undefined };
+      const patientId = await savePatient(patientData, user.uid, userInfo);
       console.log("Paciente salvo com ID:", patientId);
 
       if (photoFile && patientId) {
@@ -256,7 +257,7 @@ export default function Patients() {
           const photoURL = await uploadPatientPhoto(photoFile, user.uid, patientId);
           console.log("Foto enviada, atualizando URL...");
           // Atualizar com nova foto
-          await savePatient({ ...patientData, id: patientId, photoURL }, user.uid);
+          await savePatient({ ...patientData, id: patientId, photoURL }, user.uid, userInfo);
           console.log("URL da foto salva no banco.");
         } catch (error) {
           console.error("Erro ao fazer upload da foto:", error);
@@ -300,7 +301,9 @@ export default function Patients() {
     }
 
     try {
-      await deletePatient(patientId, user.uid);
+      const patientToDelete = patients.find(p => p.id === patientId);
+      const userInfo = { name: user.displayName || undefined, email: user.email || undefined };
+      await deletePatient(patientId, user.uid, patientToDelete?.name, userInfo);
       toast({
         title: "Paciente excluído",
         description: "O paciente foi excluído com sucesso.",

@@ -1,6 +1,7 @@
 import { ref, push, set, get, remove, update } from "firebase/database";
 // import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { realtimeDb } from "./firebase";
+import { logActivity } from "./activityLog";
 
 export interface Patient {
   id?: string;
@@ -71,7 +72,11 @@ async function compressImage(file: File): Promise<string> {
 }
 
 // Salvar paciente no Realtime Database
-export async function savePatient(patient: Patient, userId: string): Promise<string> {
+export async function savePatient(
+  patient: Patient,
+  userId: string,
+  userInfo?: { name?: string; email?: string }
+): Promise<string> {
   try {
     if (patient.id) {
       // Atualizar paciente existente
@@ -94,6 +99,18 @@ export async function savePatient(patient: Patient, userId: string): Promise<str
       }
 
       await update(patientRef, updateData);
+
+      // Registrar atividade de atualização
+      await logActivity({
+        action: 'update',
+        entityType: 'patient',
+        entityId: patient.id,
+        entityName: patient.name,
+        userId,
+        userName: userInfo?.name,
+        userEmail: userInfo?.email,
+      });
+
       return patient.id;
     } else {
       // Criar novo paciente
@@ -115,7 +132,20 @@ export async function savePatient(patient: Patient, userId: string): Promise<str
       });
 
       await set(newPatientRef, patientData);
-      return newPatientRef.key || "";
+      const newId = newPatientRef.key || "";
+
+      // Registrar atividade de criação
+      await logActivity({
+        action: 'create',
+        entityType: 'patient',
+        entityId: newId,
+        entityName: patient.name,
+        userId,
+        userName: userInfo?.name,
+        userEmail: userInfo?.email,
+      });
+
+      return newId;
     }
   } catch (error: any) {
     console.error("Erro ao salvar paciente:", error);
@@ -245,13 +275,29 @@ export async function getPatientById(
 }
 
 // Deletar paciente
-export async function deletePatient(patientId: string, userId: string): Promise<void> {
+export async function deletePatient(
+  patientId: string,
+  userId: string,
+  patientName?: string,
+  userInfo?: { name?: string; email?: string }
+): Promise<void> {
   try {
     const patientRef = ref(realtimeDb, `users/${userId}/patients/${patientId}`);
     await remove(patientRef);
 
     // Remover do LocalStorage
     localStorage.removeItem(`p_img_${patientId}`);
+
+    // Registrar atividade de exclusão
+    await logActivity({
+      action: 'delete',
+      entityType: 'patient',
+      entityId: patientId,
+      entityName: patientName || 'Paciente',
+      userId,
+      userName: userInfo?.name,
+      userEmail: userInfo?.email,
+    });
     console.log("Removido do LocalStorage:", `p_img_${patientId}`);
 
   } catch (error) {

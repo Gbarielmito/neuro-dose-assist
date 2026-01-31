@@ -11,6 +11,7 @@ import {
     Timestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { logActivity } from "./activityLog";
 
 export type AppointmentType = "Consulta" | "Retorno" | "Exame" | "Outro";
 export type AppointmentStatus = "Agendada" | "Confirmada" | "Concluída" | "Cancelada";
@@ -31,7 +32,11 @@ export interface Appointment {
 }
 
 // Save an appointment
-export async function saveAppointment(appointment: Appointment, userId: string): Promise<string> {
+export async function saveAppointment(
+    appointment: Appointment,
+    userId: string,
+    userInfo?: { name?: string; email?: string }
+): Promise<string> {
     try {
         const appointmentsRef = collection(db, "users", userId, "appointments");
 
@@ -49,9 +54,20 @@ export async function saveAppointment(appointment: Appointment, userId: string):
                 notes: appointment.notes || null,
                 updatedAt: new Date().toISOString(),
             });
+
+            // Registrar atividade de atualização
+            await logActivity({
+                action: 'update',
+                entityType: 'appointment',
+                entityId: appointment.id,
+                entityName: `${appointment.type} - ${appointment.patientName}`,
+                userId,
+                userName: userInfo?.name,
+                userEmail: userInfo?.email,
+            });
+
             return appointment.id;
         } else {
-            // Create new appointment
             const docRef = await addDoc(appointmentsRef, {
                 patientId: appointment.patientId,
                 patientName: appointment.patientName,
@@ -64,6 +80,18 @@ export async function saveAppointment(appointment: Appointment, userId: string):
                 createdAt: new Date().toISOString(),
                 createdBy: userId,
             });
+
+            // Registrar atividade de criação
+            await logActivity({
+                action: 'create',
+                entityType: 'appointment',
+                entityId: docRef.id,
+                entityName: `${appointment.type} - ${appointment.patientName}`,
+                userId,
+                userName: userInfo?.name,
+                userEmail: userInfo?.email,
+            });
+
             return docRef.id;
         }
     } catch (error) {
@@ -198,10 +226,26 @@ export async function updateAppointmentStatus(
 }
 
 // Delete an appointment
-export async function deleteAppointment(appointmentId: string, userId: string): Promise<void> {
+export async function deleteAppointment(
+    appointmentId: string,
+    userId: string,
+    appointmentName?: string,
+    userInfo?: { name?: string; email?: string }
+): Promise<void> {
     try {
         const appointmentDoc = doc(db, "users", userId, "appointments", appointmentId);
         await deleteDoc(appointmentDoc);
+
+        // Registrar atividade de exclusão
+        await logActivity({
+            action: 'delete',
+            entityType: 'appointment',
+            entityId: appointmentId,
+            entityName: appointmentName || 'Consulta',
+            userId,
+            userName: userInfo?.name,
+            userEmail: userInfo?.email,
+        });
     } catch (error) {
         console.error("Error deleting appointment:", error);
         throw error;

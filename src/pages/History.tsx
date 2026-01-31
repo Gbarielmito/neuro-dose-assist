@@ -39,6 +39,11 @@ import {
   ChevronRight,
   Download,
   Loader2,
+  Users,
+  FileText,
+  Trash2,
+  Edit,
+  PlusCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -48,6 +53,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getDoses, DoseRecord } from "@/lib/doses";
 import { getPatients, Patient } from "@/lib/patients";
 import { getMedications, Medication } from "@/lib/medications";
+import { getActivityLogs, ActivityLog } from "@/lib/activityLog";
 import { toast } from "@/hooks/use-toast";
 
 // Interface for enriched history item to display
@@ -92,19 +98,22 @@ export default function History() {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   useEffect(() => {
     async function fetchData() {
       if (!user) return;
       try {
         setLoading(true);
-        const [dosesData, patientsData, medicationsData] = await Promise.all([
+        const [dosesData, patientsData, medicationsData, logsData] = await Promise.all([
           getDoses(user.uid),
           getPatients(user.uid),
-          getMedications(user.uid)
+          getMedications(user.uid),
+          getActivityLogs(user.uid)
         ]);
 
         setPatients(patientsData);
+        setActivityLogs(logsData);
 
         // Process and enrich data
         // Por enquanto, mapeamos cada DOSE para um HistoryItem.
@@ -408,7 +417,7 @@ export default function History() {
         {/* Tabs + Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="glass-card rounded-2xl p-2 shadow-lg">
-            <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full bg-transparent gap-1">
+            <TabsList className="grid grid-cols-2 md:grid-cols-6 w-full bg-transparent gap-1">
               <TabsTrigger value="all">Todos</TabsTrigger>
               <TabsTrigger value="dose">
                 <Pill className="w-4 h-4 mr-1" aria-hidden="true" />
@@ -426,68 +435,197 @@ export default function History() {
                 <AlertTriangle className="w-4 h-4 mr-1" aria-hidden="true" />
                 Alertas
               </TabsTrigger>
+              <TabsTrigger value="activities">
+                <FileText className="w-4 h-4 mr-1" aria-hidden="true" />
+                Atividades
+              </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value={activeTab} className="mt-6">
+          {/* Conteúdo das abas de histórico (não "activities") */}
+          {activeTab !== "activities" && (
+            <TabsContent value={activeTab} className="mt-6">
+              {loading ? (
+                <div className="glass-card rounded-2xl p-12 flex items-center justify-center gap-3">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <span className="text-muted-foreground font-medium">Carregando histórico…</span>
+                </div>
+              ) : filteredHistory.length === 0 ? (
+                <div className="glass-card rounded-2xl p-12 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                    <Search className="w-7 h-7 text-muted-foreground" aria-hidden="true" />
+                  </div>
+                  <p className="font-display font-semibold text-lg">Nenhum registro encontrado</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Ajuste os filtros ou registre uma nova dose para começar.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {filteredHistory.map((item) => {
+                    const hasRisk = !!item.analysis?.riskAssessment?.some(r => r.level !== "Baixo");
+                    const hasSymptoms =
+                      !!item.subjectiveState?.effects ||
+                      (item.subjectiveState?.mood ?? 5) <= 3 ||
+                      (item.subjectiveState?.sleep ?? 5) <= 4;
+                    const hasRecommendation = !!item.analysis?.recommendation;
+
+                    const inferredType: keyof typeof typeConfig =
+                      activeTab !== "all"
+                        ? (activeTab as keyof typeof typeConfig)
+                        : hasRisk
+                          ? "alert"
+                          : hasSymptoms
+                            ? "symptom"
+                            : hasRecommendation
+                              ? "recommendation"
+                              : "dose";
+
+                    const config = typeConfig[inferredType] || typeConfig.dose;
+                    const Icon = config.icon;
+
+                    const dt = new Date(item.timestamp);
+                    const timeLabel = tfShort.format(dt);
+                    const dateTimeLabel = dtfShort.format(dt);
+
+                    return (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedItem(item)}
+                          className={cn(
+                            "w-full text-left glass-card rounded-2xl p-5 transition-[transform,box-shadow,background-color] duration-200 hover:shadow-md hover:bg-card/90",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          )}
+                          aria-label={`Abrir detalhes do registro de ${item.patientName} em ${dateTimeLabel}`}
+                          style={{ contentVisibility: "auto" }}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border", config.color)}>
+                              <Icon className="w-6 h-6" aria-hidden="true" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline" className={cn("text-xs", config.color)}>
+                                  {config.label}
+                                </Badge>
+                                <span className="text-sm font-semibold truncate">{item.patientName}</span>
+                                <span className="text-xs text-muted-foreground">• {timeLabel}</span>
+                              </div>
+
+                              <p className="font-medium mt-1 truncate">
+                                {item.medicationName} <span className="text-muted-foreground font-semibold">•</span>{" "}
+                                <span className="font-semibold tabular-nums">{item.doseAmount}mg</span>
+                              </p>
+
+                              <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                {item.subjectiveState?.effects && (
+                                  <p className="line-clamp-2 break-words">
+                                    “{item.subjectiveState.effects}”
+                                  </p>
+                                )}
+                                {item.analysis?.recommendation && (
+                                  <p className="text-xs line-clamp-2 break-words">
+                                    <span className="font-semibold text-foreground/80">Recomendação:</span>{" "}
+                                    {item.analysis.recommendation}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 mt-3">
+                                <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                  <CalendarIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                                  {dateTimeLabel}
+                                </div>
+                                {typeof item.subjectiveState?.mood === "number" && (
+                                  <Badge variant="outline" className="bg-secondary/50">
+                                    Humor: <span className="ml-1 font-semibold tabular-nums">{item.subjectiveState.mood}/5</span>
+                                  </Badge>
+                                )}
+                                {typeof item.subjectiveState?.energy === "number" && (
+                                  <Badge variant="outline" className="bg-secondary/50">
+                                    Energia: <span className="ml-1 font-semibold tabular-nums">{item.subjectiveState.energy}/5</span>
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              {typeof item.analysis?.efficacyPrediction === "number" && (
+                                <EfficacyRing value={item.analysis.efficacyPrediction} size="sm" showLabel={false} />
+                              )}
+
+                              {hasRisk && (
+                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 hidden sm:inline-flex">
+                                  Risco
+                                </Badge>
+                              )}
+                              <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+                            </div>
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </TabsContent>
+          )}
+
+          {/* Aba de Atividades */}
+          <TabsContent value="activities" className="mt-6">
             {loading ? (
               <div className="glass-card rounded-2xl p-12 flex items-center justify-center gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="text-muted-foreground font-medium">Carregando histórico…</span>
+                <span className="text-muted-foreground font-medium">Carregando atividades…</span>
               </div>
-            ) : filteredHistory.length === 0 ? (
+            ) : activityLogs.length === 0 ? (
               <div className="glass-card rounded-2xl p-12 text-center">
                 <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-7 h-7 text-muted-foreground" aria-hidden="true" />
+                  <FileText className="w-7 h-7 text-muted-foreground" aria-hidden="true" />
                 </div>
-                <p className="font-display font-semibold text-lg">Nenhum registro encontrado</p>
+                <p className="font-display font-semibold text-lg">Nenhuma atividade registrada</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Ajuste os filtros ou registre uma nova dose para começar.
+                  As atividades serão registradas conforme você usar o sistema.
                 </p>
               </div>
             ) : (
               <ul className="space-y-3">
-                {filteredHistory.map((item) => {
-                  const hasRisk = !!item.analysis?.riskAssessment?.some(r => r.level !== "Baixo");
-                  const hasSymptoms =
-                    !!item.subjectiveState?.effects ||
-                    (item.subjectiveState?.mood ?? 5) <= 3 ||
-                    (item.subjectiveState?.sleep ?? 5) <= 4;
-                  const hasRecommendation = !!item.analysis?.recommendation;
+                {activityLogs.map((log) => {
+                  const actionConfig = {
+                    create: { icon: PlusCircle, label: "Cadastrou", color: "bg-success/10 text-success border-success/20" },
+                    update: { icon: Edit, label: "Atualizou", color: "bg-info/10 text-info border-info/20" },
+                    delete: { icon: Trash2, label: "Removeu", color: "bg-destructive/10 text-destructive border-destructive/20" },
+                  };
 
-                  const inferredType: keyof typeof typeConfig =
-                    activeTab !== "all"
-                      ? (activeTab as keyof typeof typeConfig)
-                      : hasRisk
-                        ? "alert"
-                        : hasSymptoms
-                          ? "symptom"
-                          : hasRecommendation
-                            ? "recommendation"
-                            : "dose";
+                  const entityConfig = {
+                    patient: { label: "Paciente", icon: Users },
+                    medication: { label: "Medicamento", icon: Pill },
+                    appointment: { label: "Consulta", icon: CalendarIcon },
+                    dose: { label: "Dose", icon: Pill },
+                    invite: { label: "Convite", icon: Users },
+                    clinic_member: { label: "Membro", icon: Users },
+                  };
 
-                  const config = typeConfig[inferredType] || typeConfig.dose;
-                  const Icon = config.icon;
+                  const config = actionConfig[log.action] || actionConfig.create;
+                  const entity = entityConfig[log.entityType] || entityConfig.patient;
+                  const ActionIcon = config.icon;
+                  const EntityIcon = entity.icon;
 
-                  const dt = new Date(item.timestamp);
-                  const timeLabel = tfShort.format(dt);
-                  const dateTimeLabel = dtfShort.format(dt);
+                  const dt = new Date(log.timestamp);
+                  const dateTimeLabel = format(dt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 
                   return (
-                    <li key={item.id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedItem(item)}
+                    <li key={log.id}>
+                      <div
                         className={cn(
-                          "w-full text-left glass-card rounded-2xl p-5 transition-[transform,box-shadow,background-color] duration-200 hover:shadow-md hover:bg-card/90",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          "w-full glass-card rounded-2xl p-5 transition-colors duration-200 hover:bg-card/90"
                         )}
-                        aria-label={`Abrir detalhes do registro de ${item.patientName} em ${dateTimeLabel}`}
-                        style={{ contentVisibility: "auto" }}
                       >
                         <div className="flex items-start gap-4">
                           <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border", config.color)}>
-                            <Icon className="w-6 h-6" aria-hidden="true" />
+                            <ActionIcon className="w-6 h-6" aria-hidden="true" />
                           </div>
 
                           <div className="flex-1 min-w-0">
@@ -495,61 +633,34 @@ export default function History() {
                               <Badge variant="outline" className={cn("text-xs", config.color)}>
                                 {config.label}
                               </Badge>
-                              <span className="text-sm font-semibold truncate">{item.patientName}</span>
-                              <span className="text-xs text-muted-foreground">• {timeLabel}</span>
+                              <Badge variant="outline" className="text-xs bg-muted/50">
+                                <EntityIcon className="w-3 h-3 mr-1" />
+                                {entity.label}
+                              </Badge>
                             </div>
 
-                            <p className="font-medium mt-1 truncate">
-                              {item.medicationName} <span className="text-muted-foreground font-semibold">•</span>{" "}
-                              <span className="font-semibold tabular-nums">{item.doseAmount}mg</span>
+                            <p className="font-medium mt-2">{log.entityName}</p>
+
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {log.description}
                             </p>
 
-                            <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                              {item.subjectiveState?.effects && (
-                                <p className="line-clamp-2 break-words">
-                                  “{item.subjectiveState.effects}”
-                                </p>
-                              )}
-                              {item.analysis?.recommendation && (
-                                <p className="text-xs line-clamp-2 break-words">
-                                  <span className="font-semibold text-foreground/80">Recomendação:</span>{" "}
-                                  {item.analysis.recommendation}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2 mt-3">
-                              <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                <CalendarIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                            <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3.5 h-3.5" aria-hidden="true" />
+                                <span className="font-medium text-foreground/80">
+                                  {log.userName || log.userEmail || "Usuário"}
+                                </span>
+                              </div>
+                              <span>•</span>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" aria-hidden="true" />
                                 {dateTimeLabel}
                               </div>
-                              {typeof item.subjectiveState?.mood === "number" && (
-                                <Badge variant="outline" className="bg-secondary/50">
-                                  Humor: <span className="ml-1 font-semibold tabular-nums">{item.subjectiveState.mood}/5</span>
-                                </Badge>
-                              )}
-                              {typeof item.subjectiveState?.energy === "number" && (
-                                <Badge variant="outline" className="bg-secondary/50">
-                                  Energia: <span className="ml-1 font-semibold tabular-nums">{item.subjectiveState.energy}/5</span>
-                                </Badge>
-                              )}
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-3 shrink-0">
-                            {typeof item.analysis?.efficacyPrediction === "number" && (
-                              <EfficacyRing value={item.analysis.efficacyPrediction} size="sm" showLabel={false} />
-                            )}
-
-                            {hasRisk && (
-                              <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 hidden sm:inline-flex">
-                                Risco
-                              </Badge>
-                            )}
-                            <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
-                          </div>
                         </div>
-                      </button>
+                      </div>
                     </li>
                   );
                 })}
@@ -632,8 +743,8 @@ export default function History() {
                       <p className="text-sm font-semibold">Risco</p>
                       <ul className="mt-2 space-y-2">
                         {selectedItem.analysis.riskAssessment.map((r, idx) => (
-                          <li key={`${r.type}-${idx}`} className="text-sm text-muted-foreground break-words">
-                            <span className="font-semibold text-foreground/80">{r.type}:</span>{" "}
+                          <li key={`${r.category}-${idx}`} className="text-sm text-muted-foreground break-words">
+                            <span className="font-semibold text-foreground/80">{r.category}:</span>{" "}
                             {r.level} — {r.description}
                           </li>
                         ))}

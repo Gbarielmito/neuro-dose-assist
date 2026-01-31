@@ -1,5 +1,6 @@
 import { ref, push, set, get, remove, update } from "firebase/database";
 import { realtimeDb } from "./firebase";
+import { sendInviteEmail, generateInviteLink } from "./email";
 
 export type MemberRole = "owner" | "admin" | "member";
 
@@ -19,6 +20,7 @@ export interface ClinicInvite {
     role: MemberRole;
     status: "pending" | "accepted" | "rejected";
     invitedBy: string;
+    invitedByName?: string;
     createdAt: string;
 }
 
@@ -115,18 +117,20 @@ export async function updateClinic(
     }
 }
 
-// Send invite to a new member - stored in user's invites
+// Send invite to a new member - stored in user's invites AND sends email
 export async function sendClinicInvite(
     clinicId: string,
     clinicName: string,
     email: string,
     role: MemberRole,
-    invitedBy: string
-): Promise<string> {
+    invitedBy: string,
+    invitedByName?: string
+): Promise<{ inviteId: string; emailSent: boolean }> {
     try {
         // Store invite in the clinic owner's data
         const invitesRef = ref(realtimeDb, `users/${clinicId}/clinicInvites`);
         const newInviteRef = push(invitesRef);
+        const inviteId = newInviteRef.key!;
 
         const inviteData: Omit<ClinicInvite, "id"> = {
             email: email.toLowerCase(),
@@ -135,11 +139,23 @@ export async function sendClinicInvite(
             role,
             status: "pending",
             invitedBy,
+            invitedByName,
             createdAt: new Date().toISOString(),
         };
 
         await set(newInviteRef, inviteData);
-        return newInviteRef.key!;
+
+        // Generate invite link and send email
+        const inviteLink = generateInviteLink(inviteId, clinicId);
+        const emailSent = await sendInviteEmail({
+            toEmail: email.toLowerCase(),
+            clinicName,
+            senderName: invitedByName || "Um usuário",
+            role,
+            inviteLink,
+        });
+
+        return { inviteId, emailSent };
     } catch (error) {
         console.error("Error sending clinic invite:", error);
         throw error;

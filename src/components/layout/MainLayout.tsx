@@ -1,6 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import DashboardBackground from "@/components/3d/DashboardBackground";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -11,6 +12,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      <DashboardBackground />
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

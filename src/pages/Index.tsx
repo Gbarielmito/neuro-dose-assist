@@ -208,7 +208,7 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <div className="space-y-4 sm:space-y-6 pb-8">
+      <div className="relative z-10 space-y-4 sm:space-y-6 pb-8">
         {/* Header - Hero Section */}
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-white/5 shadow-2xl group">
 

@@ -1,4 +1,4 @@
-import { useState, Suspense } from "react";
+import { useState, Suspense, lazy } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Brain, Mail, Lock, Loader2, ShieldCheck, Sparkles, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { NeuralBrainScene } from "@/components/3d/NeuralBrainScene";
+
+// Lazy load Three.js component to reduce initial bundle size
+const NeuralBrainScene = lazy(() =>
+  import("@/components/3d/NeuralBrainScene").then(m => ({ default: m.NeuralBrainScene }))
+);
 
 export default function Login() {
   const [email, setEmail] = useState("");

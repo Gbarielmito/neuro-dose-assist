@@ -1,7 +1,9 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, lazy, Suspense } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import DashboardBackground from "@/components/3d/DashboardBackground";
+
+// Lazy load Three.js component to reduce initial bundle size
+const DashboardBackground = lazy(() => import("@/components/3d/DashboardBackground"));
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -12,7 +14,9 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardBackground />
+      <Suspense fallback={null}>
+        <DashboardBackground />
+      </Suspense>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

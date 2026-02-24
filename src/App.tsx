@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 
 // Lazy load all pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -42,6 +43,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <SpeedInsights />
+            <VercelAnalytics />
             <BrowserRouter>
               <Suspense fallback={<PageLoader />}>
                 <Routes>

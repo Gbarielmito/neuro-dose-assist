@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EfficacyRing } from "@/components/dashboard/EfficacyRing";
+import { PostDoseInsightCard } from "@/components/dashboard/PostDoseInsightCard";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,7 @@ import {
   Trash2,
   Edit,
   PlusCircle,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -561,6 +563,12 @@ export default function History() {
                                   Risco
                                 </Badge>
                               )}
+                              {item.analysis?.postDoseInsights && item.analysis.postDoseInsights.length > 0 && (
+                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 hidden sm:inline-flex">
+                                  <Sparkles className="w-3 h-3 mr-1" aria-hidden="true" />
+                                  {item.analysis.postDoseInsights.length} insights
+                                </Badge>
+                              )}
                               <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
                             </div>
                           </div>
@@ -752,6 +760,13 @@ export default function History() {
                     </div>
                   ) : null}
                 </div>
+
+                {/* Insights Pós-Dose da IA */}
+                {selectedItem.analysis?.postDoseInsights && selectedItem.analysis.postDoseInsights.length > 0 && (
+                  <div className="rounded-xl border bg-card p-4">
+                    <PostDoseInsightCard insights={selectedItem.analysis.postDoseInsights} compact />
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>

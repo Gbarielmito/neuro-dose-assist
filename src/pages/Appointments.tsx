@@ -202,6 +202,35 @@ export default function Appointments() {
         setIsDialogOpen(true);
     };
 
+    // Helper: converte "HH:mm" em minutos desde meia-noite
+    const timeToMinutes = (time: string) => {
+        const [h, m] = time.split(":").map(Number);
+        return h * 60 + m;
+    };
+
+    // Verifica se há conflito de horário com consultas existentes
+    const checkTimeConflict = (date: string, time: string, duration: number, excludeId?: string) => {
+        const newStart = timeToMinutes(time);
+        const newEnd = newStart + duration;
+
+        const conflicting = appointments.find(apt => {
+            // Ignorar a própria consulta que está sendo editada
+            if (excludeId && apt.id === excludeId) return false;
+            // Ignorar canceladas e concluídas
+            if (apt.status === "Cancelada" || apt.status === "Concluída") return false;
+            // Só verificar no mesmo dia
+            if (apt.date !== date) return false;
+
+            const existingStart = timeToMinutes(apt.time);
+            const existingEnd = existingStart + (apt.duration || 30);
+
+            // Verifica sobreposição: novo começa antes do existente acabar E novo acaba depois do existente começar
+            return newStart < existingEnd && newEnd > existingStart;
+        });
+
+        return conflicting || null;
+    };
+
     const handleSaveAppointment = async () => {
         if (!user) return;
 
@@ -209,6 +238,23 @@ export default function Appointments() {
             toast({
                 title: "Campos obrigatórios",
                 description: "Selecione paciente, data e horário.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Verificar conflito de horário
+        const conflict = checkTimeConflict(
+            formData.date,
+            formData.time,
+            parseInt(formData.duration),
+            editingAppointment?.id
+        );
+
+        if (conflict) {
+            toast({
+                title: "Conflito de horário",
+                description: `Já existe uma consulta com ${conflict.patientName} às ${conflict.time} (${conflict.duration} min) neste horário. Escolha outro horário.`,
                 variant: "destructive",
             });
             return;

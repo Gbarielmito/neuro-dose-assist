@@ -13,14 +13,16 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { EfficacyRing } from "@/components/dashboard/EfficacyRing";
+import { PostDoseInsightCard } from "@/components/dashboard/PostDoseInsightCard";
 import { Link } from "react-router-dom";
 import { Brain, Pill, User, Sparkles, AlertTriangle, CheckCircle, Loader2, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPatients, Patient } from "@/lib/patients";
 import { getMedications, Medication } from "@/lib/medications";
-import { analyzeDose, AnalysisResult } from "@/services/aiService";
+import { analyzeDose, AnalysisResult, type ConfidenceLevel } from "@/services/aiService";
 import { saveDose } from "@/lib/doses";
+import { getUserSettings } from "@/lib/firestore";
 import { toast } from "@/hooks/use-toast";
 
 export default function DoseRegister() {
@@ -50,6 +52,7 @@ export default function DoseRegister() {
   // Analysis State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [confidenceLevel, setConfidenceLevel] = useState<ConfidenceLevel>('high');
 
   useEffect(() => {
     async function loadData() {
@@ -61,6 +64,16 @@ export default function DoseRegister() {
         ]);
         setPatients(patientsData);
         setMedications(medicationsData);
+
+        // Carregar nível de confiança da IA das configurações
+        try {
+          const settings = await getUserSettings(user.uid);
+          if (settings?.ai?.confidence) {
+            setConfidenceLevel(settings.ai.confidence);
+          }
+        } catch {
+          // Usar padrão 'high' se não conseguir carregar
+        }
       } catch (error) {
         console.error("Error loading data:", error);
         toast({
@@ -87,6 +100,25 @@ export default function DoseRegister() {
 
     setIsAnalyzing(true);
     try {
+      // Preparar contexto do medicamento para a IA
+      const medicationContext = selectedMedication ? {
+        name: selectedMedication.name,
+        brandName: selectedMedication.brandName,
+        activeIngredient: selectedMedication.activeIngredient,
+        therapeuticClass: selectedMedication.therapeuticClass,
+        minDose: selectedMedication.minDose,
+        maxDose: selectedMedication.maxDose,
+        unit: selectedMedication.unit,
+      } : undefined;
+
+      // Preparar lista de todos medicamentos para verificação de interações
+      const allMedsForCheck = medications.map(m => ({
+        id: m.id,
+        name: m.name,
+        therapeuticClass: m.therapeuticClass,
+        activeIngredient: m.activeIngredient,
+      }));
+
       const result = await analyzeDose(
         {
           patientId: selectedPatientId,
@@ -100,7 +132,10 @@ export default function DoseRegister() {
           energy: energy[0],
           sleep: sleep[0],
           effects: effects
-        }
+        },
+        medicationContext,
+        allMedsForCheck,
+        confidenceLevel
       );
       setAnalysisResult(result);
 
@@ -699,6 +734,13 @@ export default function DoseRegister() {
                 </div>
               </div>
             </div>
+
+            {/* Post-Dose AI Insights */}
+            {analysisResult?.postDoseInsights && analysisResult.postDoseInsights.length > 0 && (
+              <div className="mt-6">
+                <PostDoseInsightCard insights={analysisResult.postDoseInsights} />
+              </div>
+            )}
 
             <div className="flex justify-center gap-4 mt-8">
               <Button variant="outline" onClick={() => { setStep(1); setShowResult(false); }}>

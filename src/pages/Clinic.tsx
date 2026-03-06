@@ -136,6 +136,15 @@ export default function ClinicPage() {
     const handleSendInvite = async () => {
         if (!user || !clinic?.id || !inviteEmail.trim()) return;
 
+        if (!inviteEmail.includes("@")) {
+            toast({
+                title: "Email inválido",
+                description: "O email deve conter @. Verifique e tente novamente.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         try {
             setSaving(true);
             const result = await sendClinicInvite(

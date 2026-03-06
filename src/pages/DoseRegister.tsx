@@ -98,6 +98,16 @@ export default function DoseRegister() {
       return;
     }
 
+    // Verificar se a dose ultrapassa o limite máximo do medicamento
+    if (selectedMedication?.maxDose && Number(doseAmount) > selectedMedication.maxDose) {
+      toast({
+        title: "Dose acima do limite",
+        description: `A dose informada (${doseAmount} mg) excede o limite máximo de ${selectedMedication.maxDose} mg cadastrado para ${selectedMedication.name}. Corrija antes de continuar.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsAnalyzing(true);
     try {
       // Preparar contexto do medicamento para a IA
@@ -194,13 +204,16 @@ export default function DoseRegister() {
   const selectedPatient = patients.find((p) => p.id === selectedPatientId);
   const selectedMedication = medications.find((m) => m.id === selectedMedicationId);
 
+  const isDoseOverLimit = !!(selectedMedication?.maxDose && Number(doseAmount) > selectedMedication.maxDose);
+
   const canContinueStep1 =
     !!selectedPatientId &&
     !!selectedMedicationId &&
     !!doseAmount &&
     Number(doseAmount) > 0 &&
     !!doseTime &&
-    !!indication;
+    !!indication &&
+    !isDoseOverLimit;
 
   return (
     <MainLayout>
@@ -342,9 +355,15 @@ export default function DoseRegister() {
                         onChange={(e) => setDoseAmount(e.target.value)}
                         className="h-11"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Use o valor em mg (ex.: 20). Evite texto.
-                      </p>
+                      {isDoseOverLimit ? (
+                        <p className="text-xs text-destructive font-medium">
+                          ⚠ Dose excede o limite máximo de {selectedMedication?.maxDose} mg para {selectedMedication?.name}.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Use o valor em mg (ex.: 20). Evite texto.
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">

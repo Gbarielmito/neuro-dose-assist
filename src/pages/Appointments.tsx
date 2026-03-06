@@ -243,6 +243,19 @@ export default function Appointments() {
             return;
         }
 
+        // Verificar se a data é no passado
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDateObj = new Date(formData.date + "T00:00:00");
+        if (selectedDateObj < today) {
+            toast({
+                title: "Data inválida",
+                description: "Não é possível agendar consultas em datas passadas.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         // Verificar conflito de horário
         const conflict = checkTimeConflict(
             formData.date,
@@ -357,6 +370,21 @@ export default function Appointments() {
         );
     };
 
+    const isPastDay = (day: number) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const checkDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        return checkDate < today;
+    };
+
+    const isSelectedDatePast = useMemo(() => {
+        if (!selectedDate) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selected = new Date(selectedDate + "T00:00:00");
+        return selected < today;
+    }, [selectedDate]);
+
     return (
         <MainLayout>
             <div className="space-y-8 pb-8">
@@ -426,6 +454,7 @@ export default function Appointments() {
                                                 id="apt-date"
                                                 type="date"
                                                 value={formData.date}
+                                                min={new Date().toISOString().split("T")[0]}
                                                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                                             />
                                         </div>
@@ -556,6 +585,7 @@ export default function Appointments() {
                                     const dayAppointments = getAppointmentsForDate(day);
                                     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                                     const isSelected = selectedDate === dateStr;
+                                    const isPast = isPastDay(day);
 
                                     return (
                                         <button
@@ -566,7 +596,8 @@ export default function Appointments() {
                                                 "hover:bg-primary/10",
                                                 isToday(day) && "ring-2 ring-primary",
                                                 isSelected && "bg-primary text-primary-foreground hover:bg-primary/90",
-                                                !isSelected && "hover:bg-muted"
+                                                !isSelected && "hover:bg-muted",
+                                                isPast && !isSelected && "opacity-40"
                                             )}
                                         >
                                             <span className={cn(
@@ -687,13 +718,15 @@ export default function Appointments() {
                                     <div className="text-center py-8 text-muted-foreground">
                                         <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
                                         <p>Nenhuma consulta neste dia</p>
-                                        <Button
-                                            variant="link"
-                                            className="mt-2"
-                                            onClick={openNewAppointmentDialog}
-                                        >
-                                            Agendar consulta
-                                        </Button>
+                                        {!isSelectedDatePast && (
+                                            <Button
+                                                variant="link"
+                                                className="mt-2"
+                                                onClick={openNewAppointmentDialog}
+                                            >
+                                                Agendar consulta
+                                            </Button>
+                                        )}
                                     </div>
                                 )
                             ) : (

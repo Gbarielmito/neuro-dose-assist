@@ -2,17 +2,37 @@
     "rules": {
         "users": {
             "$userId": {
-                "patients": {
+                "clinic": {
+                    ".read": "auth != null",
+                    ".write": "auth != null"
+                },
+                "clinicInvites": {
+                    ".read": "auth != null",
+                    ".write": "auth != null"
+                },
+                "clinicMembership": {
                     ".read": "$userId === auth.uid",
-                    ".write": "$userId === auth.uid"
+                    ".write": "auth != null"
+                },
+                "activityLogs": {
+                    ".read": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()",
+                    ".write": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()"
+                },
+                "patients": {
+                    ".read": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()",
+                    ".write": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()"
                 },
                 "medications": {
-                    ".read": "$userId === auth.uid",
-                    ".write": "$userId === auth.uid"
+                    ".read": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()",
+                    ".write": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()"
                 },
                 "doses": {
-                    ".read": "$userId === auth.uid",
-                    ".write": "$userId === auth.uid"
+                    ".read": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()",
+                    ".write": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()"
+                },
+                "notes": {
+                    ".read": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()",
+                    ".write": "$userId === auth.uid || root.child('users').child($userId).child('clinic').child('memberUids').child(auth.uid).exists()"
                 }
             }
         }

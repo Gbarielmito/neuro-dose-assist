@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { getDoses, DoseRecord } from "@/lib/doses";
 import { getPatients, Patient } from "@/lib/patients";
 import { getMedications, Medication } from "@/lib/medications";
@@ -90,6 +91,7 @@ const typeConfig = {
 
 export default function History() {
   const { user } = useAuth();
+  const { effectiveUserId } = useClinic();
   const [searchTerm, setSearchTerm] = useState("");
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("all");
@@ -104,14 +106,14 @@ export default function History() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!user) return;
+      if (!user || !effectiveUserId) return;
       try {
         setLoading(true);
         const [dosesData, patientsData, medicationsData, logsData] = await Promise.all([
-          getDoses(user.uid),
-          getPatients(user.uid),
-          getMedications(user.uid),
-          getActivityLogs(user.uid)
+          getDoses(effectiveUserId),
+          getPatients(effectiveUserId),
+          getMedications(effectiveUserId),
+          getActivityLogs(effectiveUserId)
         ]);
 
         setPatients(patientsData);

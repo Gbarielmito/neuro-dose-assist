@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ClinicProvider } from "@/contexts/ClinicContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -39,101 +40,103 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <SpeedInsights />
-            <VercelAnalytics />
-            <BrowserRouter>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <Index />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/dose"
-                    element={
-                      <ProtectedRoute>
-                        <DoseRegister />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/patients"
-                    element={
-                      <ProtectedRoute>
-                        <Patients />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/appointments"
-                    element={
-                      <ProtectedRoute>
-                        <Appointments />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/medications"
-                    element={
-                      <ProtectedRoute>
-                        <Medications />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/history"
-                    element={
-                      <ProtectedRoute>
-                        <History />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/reports"
-                    element={
-                      <ProtectedRoute>
-                        <Reports />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/clinic"
-                    element={
-                      <ProtectedRoute>
-                        <ClinicPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/analytics"
-                    element={
-                      <ProtectedRoute>
-                        <Analytics />
-                      </ProtectedRoute>
-                    }
-                  />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-          </TooltipProvider>
+          <ClinicProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <SpeedInsights />
+              <VercelAnalytics />
+              <BrowserRouter>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute>
+                          <Index />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dose"
+                      element={
+                        <ProtectedRoute>
+                          <DoseRegister />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/patients"
+                      element={
+                        <ProtectedRoute>
+                          <Patients />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/appointments"
+                      element={
+                        <ProtectedRoute>
+                          <Appointments />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/medications"
+                      element={
+                        <ProtectedRoute>
+                          <Medications />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/history"
+                      element={
+                        <ProtectedRoute>
+                          <History />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/reports"
+                      element={
+                        <ProtectedRoute>
+                          <Reports />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute>
+                          <Settings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/clinic"
+                      element={
+                        <ProtectedRoute>
+                          <ClinicPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/analytics"
+                      element={
+                        <ProtectedRoute>
+                          <Analytics />
+                        </ProtectedRoute>
+                      }
+                    />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </BrowserRouter>
+            </TooltipProvider>
+          </ClinicProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

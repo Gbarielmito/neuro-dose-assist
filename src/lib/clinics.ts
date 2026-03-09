@@ -5,7 +5,7 @@ import { sendInviteEmail, generateInviteLink } from "./email";
 export type MemberRole = "owner" | "admin" | "member";
 
 export interface ClinicMember {
-    odal: string;
+    uid: string;
     email: string;
     name?: string;
     role: MemberRole;
@@ -24,12 +24,20 @@ export interface ClinicInvite {
     createdAt: string;
 }
 
+export interface ClinicMembership {
+    clinicOwnerId: string;
+    clinicName: string;
+    role: MemberRole;
+    joinedAt: string;
+}
+
 export interface Clinic {
     id?: string;
     name: string;
     ownerId: string;
     ownerEmail: string;
     members: ClinicMember[];
+    memberUids?: Record<string, boolean>;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -52,7 +60,6 @@ export async function createClinic(
     userEmail: string
 ): Promise<string> {
     try {
-        // Store clinic data in user's own path (works with existing rules)
         const clinicRef = ref(realtimeDb, `users/${userId}/clinic`);
 
         const clinicData: Omit<Clinic, "id"> = {
@@ -61,12 +68,15 @@ export async function createClinic(
             ownerEmail: userEmail,
             members: [
                 {
-                    odal: userId,
+                    uid: userId,
                     email: userEmail,
                     role: "owner",
                     joinedAt: new Date().toISOString(),
                 },
             ],
+            memberUids: {
+                [userId]: true,
+            },
             createdAt: new Date().toISOString(),
         };
 
@@ -78,36 +88,91 @@ export async function createClinic(
     }
 }
 
-// Get user's clinic
+// Get user's clinic (own or as member)
 export async function getUserClinic(userId: string): Promise<Clinic | null> {
     try {
+        // 1. Check if user owns a clinic
         const clinicRef = ref(realtimeDb, `users/${userId}/clinic`);
         const clinicSnapshot = await get(clinicRef);
 
-        if (!clinicSnapshot.exists()) {
-            return null;
+        if (clinicSnapshot.exists()) {
+            return {
+                id: userId,
+                ...clinicSnapshot.val(),
+            };
         }
 
-        return {
-            id: userId,
-            ...clinicSnapshot.val(),
-        };
+        // 2. Check if user is a member of another clinic
+        const membership = await getClinicMembership(userId);
+        if (membership) {
+            const ownerClinicRef = ref(realtimeDb, `users/${membership.clinicOwnerId}/clinic`);
+            const ownerSnapshot = await get(ownerClinicRef);
+            if (ownerSnapshot.exists()) {
+                return {
+                    id: membership.clinicOwnerId,
+                    ...ownerSnapshot.val(),
+                };
+            }
+        }
+
+        return null;
     } catch (error) {
         console.error("Error getting user clinic:", error);
         return null;
     }
 }
 
+// Get clinic membership for a user (if they are a member of someone else's clinic)
+export async function getClinicMembership(userId: string): Promise<ClinicMembership | null> {
+    try {
+        const membershipRef = ref(realtimeDb, `users/${userId}/clinicMembership`);
+        const snapshot = await get(membershipRef);
+
+        if (snapshot.exists()) {
+            return snapshot.val() as ClinicMembership;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error getting clinic membership:", error);
+        return null;
+    }
+}
+
+// Get effective user ID for data access
+// Returns the clinic owner's ID if the user is a member, otherwise returns own ID
+export async function getEffectiveUserId(userId: string): Promise<string> {
+    try {
+        // Check if user owns a clinic — they use their own ID
+        const clinicRef = ref(realtimeDb, `users/${userId}/clinic`);
+        const clinicSnapshot = await get(clinicRef);
+        if (clinicSnapshot.exists()) {
+            return userId;
+        }
+
+        // Check if user is a member of another clinic
+        const membership = await getClinicMembership(userId);
+        if (membership) {
+            return membership.clinicOwnerId;
+        }
+
+        // Independent user
+        return userId;
+    } catch (error) {
+        console.error("Error getting effective user ID:", error);
+        return userId;
+    }
+}
+
 // Update clinic
 export async function updateClinic(
-    clinicId: string, // This is the owner's userId
+    clinicId: string,
     data: Partial<Clinic>
 ): Promise<void> {
     try {
         const clinicRef = ref(realtimeDb, `users/${clinicId}/clinic`);
         const updateData = removeUndefinedFields({
             ...data,
-            id: undefined, // Don't store id in the data
+            id: undefined,
             updatedAt: new Date().toISOString(),
         });
         await update(clinicRef, updateData);
@@ -117,7 +182,7 @@ export async function updateClinic(
     }
 }
 
-// Send invite to a new member - stored in user's invites AND sends email
+// Send invite to a new member
 export async function sendClinicInvite(
     clinicId: string,
     clinicName: string,
@@ -127,7 +192,6 @@ export async function sendClinicInvite(
     invitedByName?: string
 ): Promise<{ inviteId: string; emailSent: boolean }> {
     try {
-        // Store invite in the clinic owner's data
         const invitesRef = ref(realtimeDb, `users/${clinicId}/clinicInvites`);
         const newInviteRef = push(invitesRef);
         const inviteId = newInviteRef.key!;
@@ -162,23 +226,131 @@ export async function sendClinicInvite(
     }
 }
 
-// Get pending invites for a user (by email) - checks all users' invites
-// Note: This is a simplified version that only works for the clinic owner
-export async function getPendingInvites(email: string): Promise<ClinicInvite[]> {
-    // For simplicity, we return empty array here
-    // In a real app, you'd need to restructure this or use different rules
-    console.log("getPendingInvites called for:", email);
-    return [];
+// Get a specific invite by ID from a clinic
+export async function getInviteById(
+    clinicId: string,
+    inviteId: string
+): Promise<ClinicInvite | null> {
+    try {
+        const inviteRef = ref(realtimeDb, `users/${clinicId}/clinicInvites/${inviteId}`);
+        const snapshot = await get(inviteRef);
+
+        if (snapshot.exists()) {
+            return {
+                id: inviteId,
+                ...snapshot.val(),
+            } as ClinicInvite;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error getting invite:", error);
+        return null;
+    }
 }
 
-// Accept clinic invite
+// Get pending invites for a user by email from a specific clinic
+export async function getPendingInvitesFromClinic(
+    clinicId: string,
+    email: string
+): Promise<ClinicInvite[]> {
+    try {
+        const invitesRef = ref(realtimeDb, `users/${clinicId}/clinicInvites`);
+        const snapshot = await get(invitesRef);
+
+        if (!snapshot.exists()) return [];
+
+        const invitesData = snapshot.val();
+        const invites: ClinicInvite[] = [];
+
+        Object.entries(invitesData).forEach(([key, value]) => {
+            const invite = value as Omit<ClinicInvite, "id">;
+            if (
+                invite.email === email.toLowerCase() &&
+                invite.status === "pending"
+            ) {
+                invites.push({ id: key, ...invite });
+            }
+        });
+
+        return invites;
+    } catch (error) {
+        console.error("Error getting pending invites:", error);
+        return [];
+    }
+}
+
+// Accept clinic invite — the core of the invite system
 export async function acceptClinicInvite(
     inviteId: string,
+    clinicId: string,
     userId: string,
+    userEmail: string,
     userName?: string
 ): Promise<void> {
-    // Simplified - would need different data structure for full implementation
-    console.log("acceptClinicInvite called:", inviteId, userId, userName);
+    try {
+        // 1. Read the invite
+        const inviteRef = ref(realtimeDb, `users/${clinicId}/clinicInvites/${inviteId}`);
+        const inviteSnapshot = await get(inviteRef);
+
+        if (!inviteSnapshot.exists()) {
+            throw new Error("Convite não encontrado");
+        }
+
+        const invite = inviteSnapshot.val() as ClinicInvite;
+
+        if (invite.status !== "pending") {
+            throw new Error("Este convite já foi utilizado");
+        }
+
+        // 2. Read the clinic to get current members
+        const clinicRef = ref(realtimeDb, `users/${clinicId}/clinic`);
+        const clinicSnapshot = await get(clinicRef);
+
+        if (!clinicSnapshot.exists()) {
+            throw new Error("Clínica não encontrada");
+        }
+
+        const clinic = clinicSnapshot.val() as Clinic;
+
+        // 3. Add user to clinic members list
+        const newMember: ClinicMember = {
+            uid: userId,
+            email: userEmail.toLowerCase(),
+            name: userName || userEmail.split("@")[0],
+            role: invite.role,
+            joinedAt: new Date().toISOString(),
+        };
+
+        const updatedMembers = [...(clinic.members || []), newMember];
+        const updatedMemberUids = {
+            ...(clinic.memberUids || {}),
+            [userId]: true,
+        };
+
+        await update(clinicRef, {
+            members: updatedMembers,
+            memberUids: updatedMemberUids,
+            updatedAt: new Date().toISOString(),
+        });
+
+        // 4. Save membership on the member's profile
+        const membershipRef = ref(realtimeDb, `users/${userId}/clinicMembership`);
+        const membershipData: ClinicMembership = {
+            clinicOwnerId: clinicId,
+            clinicName: clinic.name,
+            role: invite.role,
+            joinedAt: new Date().toISOString(),
+        };
+        await set(membershipRef, membershipData);
+
+        // 5. Mark invite as accepted
+        await update(inviteRef, { status: "accepted" });
+
+        console.log("Invite accepted successfully for user:", userId);
+    } catch (error) {
+        console.error("Error accepting clinic invite:", error);
+        throw error;
+    }
 }
 
 // Add member directly (for owner to add members)
@@ -198,7 +370,7 @@ export async function addClinicMember(
 
         const clinic = clinicSnapshot.val() as Clinic;
         const newMember: ClinicMember = {
-            odal: `member_${Date.now()}`, // Temporary ID until they accept
+            uid: `member_${Date.now()}`,
             email: memberEmail.toLowerCase(),
             name: memberName,
             role,
@@ -216,7 +388,7 @@ export async function addClinicMember(
 // Remove member from clinic
 export async function removeClinicMember(
     clinicOwnerId: string,
-    memberEmail: string
+    memberUid: string
 ): Promise<void> {
     try {
         const clinicRef = ref(realtimeDb, `users/${clinicOwnerId}/clinic`);
@@ -227,9 +399,20 @@ export async function removeClinicMember(
         }
 
         const clinic = clinicSnapshot.val() as Clinic;
-        const updatedMembers = clinic.members.filter(m => m.email !== memberEmail.toLowerCase());
+        const updatedMembers = clinic.members.filter(m => m.uid !== memberUid);
 
-        await update(clinicRef, { members: updatedMembers });
+        // Remove from memberUids as well
+        const updatedMemberUids = { ...(clinic.memberUids || {}) };
+        delete updatedMemberUids[memberUid];
+
+        await update(clinicRef, {
+            members: updatedMembers,
+            memberUids: updatedMemberUids,
+        });
+
+        // Remove membership from the member's profile
+        const membershipRef = ref(realtimeDb, `users/${memberUid}/clinicMembership`);
+        await remove(membershipRef);
     } catch (error) {
         console.error("Error removing clinic member:", error);
         throw error;

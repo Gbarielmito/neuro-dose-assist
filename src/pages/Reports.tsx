@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -50,6 +51,7 @@ const reportTypes = [
 
 export default function Reports() {
   const { user } = useAuth();
+  const { effectiveUserId } = useClinic();
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedPatient, setSelectedPatient] = useState<string>("all");
@@ -69,18 +71,17 @@ export default function Reports() {
     let mounted = true;
 
     async function loadData() {
-      if (!user) {
+      if (!user || !effectiveUserId) {
         if (mounted) setLoading(false);
         return;
       }
 
       try {
         if (mounted) setLoading(true);
-        // Em um app real, o ID do usuário viria da autenticação
         const [dosesData, medicationsData, patientsData] = await Promise.all([
-          getDoses(user.uid),
-          getMedications(user.uid),
-          getPatients(user.uid)
+          getDoses(effectiveUserId),
+          getMedications(effectiveUserId),
+          getPatients(effectiveUserId)
         ]);
 
         if (mounted) {
@@ -99,7 +100,7 @@ export default function Reports() {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [user, effectiveUserId]);
 
   // Filtered data calculation
   const getFilteredDoses = () => {
@@ -565,9 +566,9 @@ export default function Reports() {
                     Visualize como o relatório será gerado
                   </p>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleGenerate("pdf")}
                   className="gap-2"
                 >
@@ -623,11 +624,11 @@ export default function Reports() {
                         </div>
                         <div className={cn(
                           "bg-gradient-to-br rounded-xl p-5 border",
-                          avgEfficacy > 70 
-                            ? "from-success/10 to-success/5 border-success/20" 
+                          avgEfficacy > 70
+                            ? "from-success/10 to-success/5 border-success/20"
                             : avgEfficacy > 50
-                            ? "from-warning/10 to-warning/5 border-warning/20"
-                            : "from-destructive/10 to-destructive/5 border-destructive/20"
+                              ? "from-warning/10 to-warning/5 border-warning/20"
+                              : "from-destructive/10 to-destructive/5 border-destructive/20"
                         )}>
                           <div className="flex items-center gap-2 mb-2">
                             <Activity className={cn(

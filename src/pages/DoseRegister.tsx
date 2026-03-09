@@ -18,6 +18,7 @@ import { Link } from "react-router-dom";
 import { Brain, Pill, User, Sparkles, AlertTriangle, CheckCircle, Loader2, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { getPatients, Patient } from "@/lib/patients";
 import { getMedications, Medication } from "@/lib/medications";
 import { analyzeDose, AnalysisResult, type ConfidenceLevel } from "@/services/aiService";
@@ -27,6 +28,7 @@ import { toast } from "@/hooks/use-toast";
 
 export default function DoseRegister() {
   const { user } = useAuth();
+  const { effectiveUserId } = useClinic();
   const [step, setStep] = useState(1);
   const [showResult, setShowResult] = useState(false);
 
@@ -56,11 +58,11 @@ export default function DoseRegister() {
 
   useEffect(() => {
     async function loadData() {
-      if (!user) return;
+      if (!user || !effectiveUserId) return;
       try {
         const [patientsData, medicationsData] = await Promise.all([
-          getPatients(user.uid),
-          getMedications(user.uid)
+          getPatients(effectiveUserId),
+          getMedications(effectiveUserId)
         ]);
         setPatients(patientsData);
         setMedications(medicationsData);
@@ -166,7 +168,7 @@ export default function DoseRegister() {
           analysis: result,
           timestamp: new Date().toISOString(),
           createdAt: new Date().toISOString()
-        }, user.uid,
+        }, effectiveUserId,
           { patientName: selectedPatient?.name, medicationName: selectedMedication?.name },
           { name: user.displayName || undefined, email: user.email || undefined }
         );

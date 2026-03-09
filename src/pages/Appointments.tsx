@@ -43,6 +43,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { getPatients, type Patient } from "@/lib/patients";
 import {
     saveAppointment,
@@ -77,6 +78,7 @@ const MONTHS = [
 
 export default function Appointments() {
     const { user } = useAuth();
+    const { effectiveUserId } = useClinic();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [patients, setPatients] = useState<Patient[]>([]);
     const [loading, setLoading] = useState(true);
@@ -101,13 +103,13 @@ export default function Appointments() {
     // Load data
     useEffect(() => {
         const loadData = async () => {
-            if (!user) return;
+            if (!user || !effectiveUserId) return;
 
             try {
                 setLoading(true);
                 const [appointmentsData, patientsData] = await Promise.all([
-                    getAppointments(user.uid),
-                    getPatients(user.uid),
+                    getAppointments(effectiveUserId),
+                    getPatients(effectiveUserId),
                 ]);
                 setAppointments(appointmentsData);
                 setPatients(patientsData);
@@ -243,14 +245,16 @@ export default function Appointments() {
             return;
         }
 
-        // Verificar se a data é no passado
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const selectedDateObj = new Date(formData.date + "T00:00:00");
-        if (selectedDateObj < today) {
+        // Verificar se a data ou horário são no passado
+        const now = new Date();
+        const [year, month, day] = formData.date.split("-").map(Number);
+        const [hours, minutes] = formData.time.split(":").map(Number);
+        const selectedDateTime = new Date(year, month - 1, day, hours, minutes);
+
+        if (selectedDateTime < now) {
             toast({
-                title: "Data inválida",
-                description: "Não é possível agendar consultas em datas passadas.",
+                title: "Horário inválido",
+                description: "Não é possível agendar consultas em horários que já passaram.",
                 variant: "destructive",
             });
             return;
@@ -289,14 +293,14 @@ export default function Appointments() {
                 notes: formData.notes || undefined,
             };
 
-            await saveAppointment(appointmentData, user.uid);
+            await saveAppointment(appointmentData, effectiveUserId);
 
             toast({
                 title: editingAppointment ? "Consulta atualizada!" : "Consulta agendada!",
                 description: `${patient?.name} - ${formData.date} às ${formData.time}`,
             });
 
-            const updatedAppointments = await getAppointments(user.uid);
+            const updatedAppointments = await getAppointments(effectiveUserId);
             setAppointments(updatedAppointments);
             setIsDialogOpen(false);
             resetForm();
@@ -318,9 +322,9 @@ export default function Appointments() {
         if (!confirm("Tem certeza que deseja excluir esta consulta?")) return;
 
         try {
-            await deleteAppointment(appointmentId, user.uid);
+            await deleteAppointment(appointmentId, effectiveUserId);
             toast({ title: "Consulta excluída" });
-            const updatedAppointments = await getAppointments(user.uid);
+            const updatedAppointments = await getAppointments(effectiveUserId);
             setAppointments(updatedAppointments);
         } catch (error) {
             console.error("Error deleting appointment:", error);
@@ -335,9 +339,9 @@ export default function Appointments() {
         if (!user) return;
 
         try {
-            await updateAppointmentStatus(appointmentId, status, user.uid);
+            await updateAppointmentStatus(appointmentId, status, effectiveUserId);
             toast({ title: `Status atualizado: ${status}` });
-            const updatedAppointments = await getAppointments(user.uid);
+            const updatedAppointments = await getAppointments(effectiveUserId);
             setAppointments(updatedAppointments);
         } catch (error) {
             console.error("Error updating status:", error);

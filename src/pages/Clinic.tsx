@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,18 +32,21 @@ import {
     Trash2,
     Check,
     X,
+    UserPlus,
+    PartyPopper,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import {
     createClinic,
     getUserClinic,
     sendClinicInvite,
-    getPendingInvites,
     acceptClinicInvite,
+    getInviteById,
     removeClinicMember,
     type Clinic,
     type ClinicInvite,
@@ -70,10 +74,15 @@ const roleStyles: Record<MemberRole, string> = {
 
 export default function ClinicPage() {
     const { user } = useAuth();
+    const { refreshClinic } = useClinic();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [clinic, setClinic] = useState<Clinic | null>(null);
-    const [pendingInvites, setPendingInvites] = useState<ClinicInvite[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    // Invite from URL
+    const [pendingUrlInvite, setPendingUrlInvite] = useState<ClinicInvite | null>(null);
+    const [inviteLoading, setInviteLoading] = useState(false);
 
     // Dialogs
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -84,19 +93,15 @@ export default function ClinicPage() {
     const [inviteEmail, setInviteEmail] = useState("");
     const [inviteRole, setInviteRole] = useState<MemberRole>("member");
 
-    // Load data
+    // Load clinic data
     useEffect(() => {
         const loadData = async () => {
             if (!user?.email) return;
 
             try {
                 setLoading(true);
-                const [clinicData, invitesData] = await Promise.all([
-                    getUserClinic(user.uid),
-                    getPendingInvites(user.email),
-                ]);
+                const clinicData = await getUserClinic(user.uid);
                 setClinic(clinicData);
-                setPendingInvites(invitesData);
             } catch (error) {
                 console.error("Error loading clinic data:", error);
             } finally {
@@ -106,6 +111,45 @@ export default function ClinicPage() {
 
         loadData();
     }, [user]);
+
+    // Handle invite URL params
+    useEffect(() => {
+        const loadInvite = async () => {
+            const inviteId = searchParams.get("invite");
+            const clinicId = searchParams.get("clinic");
+
+            if (!inviteId || !clinicId || !user) return;
+
+            try {
+                setInviteLoading(true);
+                const invite = await getInviteById(clinicId, inviteId);
+
+                if (invite && invite.status === "pending") {
+                    setPendingUrlInvite(invite);
+                } else if (invite && invite.status === "accepted") {
+                    toast({
+                        title: "Convite já aceito",
+                        description: "Este convite já foi utilizado anteriormente.",
+                    });
+                    // Clean URL params
+                    setSearchParams({});
+                } else {
+                    toast({
+                        title: "Convite não encontrado",
+                        description: "Este convite pode ter expirado ou sido removido.",
+                        variant: "destructive",
+                    });
+                    setSearchParams({});
+                }
+            } catch (error) {
+                console.error("Error loading invite:", error);
+            } finally {
+                setInviteLoading(false);
+            }
+        };
+
+        loadInvite();
+    }, [searchParams, user]);
 
     const handleCreateClinic = async () => {
         if (!user?.email || !clinicName.trim()) return;
@@ -120,6 +164,7 @@ export default function ClinicPage() {
 
             const updatedClinic = await getUserClinic(user.uid);
             setClinic(updatedClinic);
+            await refreshClinic();
             setIsCreateDialogOpen(false);
             setClinicName("");
         } catch (error) {
@@ -182,42 +227,63 @@ export default function ClinicPage() {
         }
     };
 
-    const handleAcceptInvite = async (invite: ClinicInvite) => {
-        if (!user || !invite.id) return;
+    const handleAcceptUrlInvite = async () => {
+        if (!user || !pendingUrlInvite?.id) return;
+
+        const clinicId = searchParams.get("clinic");
+        if (!clinicId) return;
 
         try {
-            await acceptClinicInvite(invite.id, user.uid, user.displayName || undefined);
+            setSaving(true);
+            await acceptClinicInvite(
+                pendingUrlInvite.id,
+                clinicId,
+                user.uid,
+                user.email || "",
+                user.displayName || undefined
+            );
             toast({
-                title: "Convite aceito!",
-                description: `Você agora faz parte de ${invite.clinicName}`,
+                title: "Convite aceito! 🎉",
+                description: `Você agora faz parte de ${pendingUrlInvite.clinicName}`,
             });
 
-            const [updatedClinic, updatedInvites] = await Promise.all([
-                getUserClinic(user.uid),
-                getPendingInvites(user.email!),
-            ]);
+            setPendingUrlInvite(null);
+            setSearchParams({});
+
+            // Reload clinic data
+            const updatedClinic = await getUserClinic(user.uid);
             setClinic(updatedClinic);
-            setPendingInvites(updatedInvites);
-        } catch (error) {
+            await refreshClinic();
+        } catch (error: any) {
             console.error("Error accepting invite:", error);
             toast({
                 title: "Erro ao aceitar convite",
+                description: error?.message || "Tente novamente.",
                 variant: "destructive",
             });
+        } finally {
+            setSaving(false);
         }
     };
 
-    const handleRemoveMember = async (memberUserId: string) => {
+    const handleDeclineUrlInvite = () => {
+        setPendingUrlInvite(null);
+        setSearchParams({});
+        toast({ title: "Convite recusado" });
+    };
+
+    const handleRemoveMember = async (memberUid: string) => {
         if (!clinic?.id) return;
 
         if (!confirm("Tem certeza que deseja remover este membro?")) return;
 
         try {
-            await removeClinicMember(clinic.id, memberUserId);
+            await removeClinicMember(clinic.id, memberUid);
             toast({ title: "Membro removido" });
 
             const updatedClinic = await getUserClinic(user!.uid);
             setClinic(updatedClinic);
+            await refreshClinic();
         } catch (error) {
             console.error("Error removing member:", error);
             toast({
@@ -249,61 +315,71 @@ export default function ClinicPage() {
                     </div>
                 </div>
 
-                {loading ? (
+                {loading || inviteLoading ? (
                     <div className="glass-card rounded-2xl p-12 flex items-center justify-center gap-3">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />
                         <span className="text-muted-foreground font-medium">Carregando...</span>
                     </div>
                 ) : (
                     <>
-                        {/* Pending Invites */}
-                        {pendingInvites.length > 0 && (
-                            <Card className="border-warning/50 bg-warning/5">
+                        {/* Pending URL Invite */}
+                        {pendingUrlInvite && (
+                            <Card className="border-primary/50 bg-primary/5">
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-warning">
-                                        <Mail className="w-5 h-5" />
-                                        Convites Pendentes
+                                    <CardTitle className="flex items-center gap-2 text-primary">
+                                        <UserPlus className="w-5 h-5" />
+                                        Convite Recebido
                                     </CardTitle>
                                     <CardDescription>
                                         Você foi convidado para participar de uma clínica
                                     </CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-3">
-                                    {pendingInvites.map(invite => (
-                                        <div
-                                            key={invite.id}
-                                            className="flex items-center justify-between p-4 bg-card rounded-lg border"
-                                        >
-                                            <div>
-                                                <p className="font-medium">{invite.clinicName}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Como: {roleLabels[invite.role]}
+                                <CardContent>
+                                    <div className="flex items-center justify-between p-4 bg-card rounded-lg border">
+                                        <div>
+                                            <p className="font-semibold text-lg">
+                                                {pendingUrlInvite.clinicName}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Função: {roleLabels[pendingUrlInvite.role]}
+                                            </p>
+                                            {pendingUrlInvite.invitedByName && (
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Convidado por: {pendingUrlInvite.invitedByName}
                                                 </p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-destructive"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => handleAcceptInvite(invite)}
-                                                >
-                                                    <Check className="w-4 h-4 mr-1" />
-                                                    Aceitar
-                                                </Button>
-                                            </div>
+                                            )}
                                         </div>
-                                    ))}
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-destructive"
+                                                onClick={handleDeclineUrlInvite}
+                                            >
+                                                <X className="w-4 h-4 mr-1" />
+                                                Recusar
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="neuro"
+                                                onClick={handleAcceptUrlInvite}
+                                                disabled={saving}
+                                            >
+                                                {saving ? (
+                                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                                ) : (
+                                                    <Check className="w-4 h-4 mr-1" />
+                                                )}
+                                                Aceitar
+                                            </Button>
+                                        </div>
+                                    </div>
                                 </CardContent>
                             </Card>
                         )}
 
                         {/* No Clinic */}
-                        {!clinic && (
+                        {!clinic && !pendingUrlInvite && (
                             <Card>
                                 <CardContent className="py-12 text-center">
                                     <Building2 className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
@@ -376,10 +452,15 @@ export default function ClinicPage() {
                                                     Criada em {clinic.createdAt && new Date(clinic.createdAt).toLocaleDateString("pt-BR")}
                                                 </CardDescription>
                                             </div>
-                                            {isOwner && (
+                                            {isOwner ? (
                                                 <Badge variant="outline" className={roleStyles.owner}>
                                                     <Crown className="w-3 h-3 mr-1" />
                                                     Proprietário
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className={roleStyles.member}>
+                                                    <User className="w-3 h-3 mr-1" />
+                                                    Membro
                                                 </Badge>
                                             )}
                                         </div>
@@ -501,7 +582,7 @@ export default function ClinicPage() {
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     className="text-destructive hover:text-destructive"
-                                                                    onClick={() => handleRemoveMember(member.odal)}
+                                                                    onClick={() => handleRemoveMember(member.uid)}
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </Button>

@@ -5,10 +5,8 @@ import {
     TrendingUp,
     Shield,
     Sparkles,
-    Lightbulb,
     Calendar,
     AlertTriangle,
-    CheckCircle2
 } from "lucide-react";
 import {
     BarChart,
@@ -104,7 +102,7 @@ export function PredictiveCard({ insights, className }: PredictiveCardProps) {
             </div>
 
             {/* Weekly Forecast Chart */}
-            <div className="mb-6">
+            <div className={cn(insights.suggestedDoseAdjustment ? "mb-6" : "")}>
                 <div className="flex items-center gap-2 mb-4">
                     <Calendar className="w-4 h-4 text-primary" />
                     <span className="text-sm font-semibold">Previsão Semanal de Eficácia</span>
@@ -124,7 +122,15 @@ export function PredictiveCard({ insights, className }: PredictiveCardProps) {
                                 backgroundColor: "hsl(var(--card))",
                                 border: "1px solid hsl(var(--border))",
                                 borderRadius: "8px",
-                                fontSize: 12
+                                fontSize: 12,
+                                color: "hsl(var(--foreground))",
+                            }}
+                            itemStyle={{
+                                color: "hsl(var(--foreground))",
+                            }}
+                            labelStyle={{
+                                color: "hsl(var(--foreground))",
+                                fontWeight: 600,
                             }}
                             formatter={(value: number) => [`${value}%`, "Eficácia"]}
                             labelFormatter={(label) => `${label}`}
@@ -142,9 +148,9 @@ export function PredictiveCard({ insights, className }: PredictiveCardProps) {
                 </ResponsiveContainer>
             </div>
 
-            {/* Suggested Adjustment */}
+            {/* Suggested Adjustment — only shown when relevant */}
             {insights.suggestedDoseAdjustment && (
-                <div className="p-4 rounded-xl bg-neuro-gradient-subtle border border-primary/20 mb-4">
+                <div className="p-4 rounded-xl bg-neuro-gradient-subtle border border-primary/20">
                     <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <AlertTriangle className="w-4 h-4 text-primary" />
@@ -158,26 +164,6 @@ export function PredictiveCard({ insights, className }: PredictiveCardProps) {
                     </div>
                 </div>
             )}
-
-            {/* AI Insights */}
-            <div>
-                <div className="flex items-center gap-2 mb-3">
-                    <Lightbulb className="w-4 h-4 text-warning" />
-                    <span className="text-sm font-semibold">Insights da IA</span>
-                </div>
-
-                <div className="space-y-2">
-                    {insights.insights.map((insight, index) => (
-                        <div
-                            key={index}
-                            className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border/50"
-                        >
-                            <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                            <p className="text-sm text-muted-foreground">{insight}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }

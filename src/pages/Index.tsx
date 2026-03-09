@@ -9,6 +9,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentPatients } from "@/components/dashboard/RecentPatients";
 import { Users, Pill, Activity, Brain, Sparkles, Zap, Calendar, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { getPatients, Patient } from "@/lib/patients";
 import { getDoses, DoseRecord } from "@/lib/doses";
 import { getMedications } from "@/lib/medications";
@@ -19,6 +20,7 @@ import { Link } from "react-router-dom";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { effectiveUserId } = useClinic();
   const [loading, setLoading] = useState(true);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doses, setDoses] = useState<DoseRecord[]>([]);
@@ -45,7 +47,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function loadDashboardData() {
-      if (!user) {
+      if (!user || !effectiveUserId) {
         setLoading(false);
         return;
       }
@@ -53,10 +55,10 @@ export default function Dashboard() {
       try {
         setLoading(true);
         const [patientsData, dosesData, medicationsData, appointmentsData] = await Promise.all([
-          getPatients(user.uid),
-          getDoses(user.uid),
-          getMedications(user.uid),
-          getUpcomingAppointments(user.uid)
+          getPatients(effectiveUserId),
+          getDoses(effectiveUserId),
+          getMedications(effectiveUserId),
+          getUpcomingAppointments(effectiveUserId)
         ]);
 
         setPatients(patientsData || []);
@@ -204,7 +206,7 @@ export default function Dashboard() {
     }
 
     loadDashboardData();
-  }, [user]);
+  }, [user, effectiveUserId]);
 
   return (
     <MainLayout>

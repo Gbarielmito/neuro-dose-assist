@@ -55,6 +55,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import {
   savePatient,
   uploadPatientPhoto,
@@ -73,6 +74,7 @@ const statusStyles = {
 export default function Patients() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
+  const { effectiveUserId } = useClinic();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false); // Modal de visualização
@@ -100,11 +102,11 @@ export default function Patients() {
   // Carregar pacientes do Firebase
   useEffect(() => {
     const loadPatients = async () => {
-      if (!user) return;
+      if (!user || !effectiveUserId) return;
 
       try {
         setLoading(true);
-        const patientsData = await getPatients(user.uid);
+        const patientsData = await getPatients(effectiveUserId);
         setPatients(patientsData);
       } catch (error: unknown) {
         console.error("Erro ao carregar pacientes:", error);
@@ -248,16 +250,16 @@ export default function Patients() {
       // Salvar (upsert)
       console.log("Chamando savePatient...");
       const userInfo = { name: user.displayName || undefined, email: user.email || undefined };
-      const patientId = await savePatient(patientData, user.uid, userInfo);
+      const patientId = await savePatient(patientData, effectiveUserId, userInfo);
       console.log("Paciente salvo com ID:", patientId);
 
       if (photoFile && patientId) {
         try {
           console.log("Iniciando upload da foto...");
-          const photoURL = await uploadPatientPhoto(photoFile, user.uid, patientId);
+          const photoURL = await uploadPatientPhoto(photoFile, effectiveUserId, patientId);
           console.log("Foto enviada, atualizando URL...");
           // Atualizar com nova foto
-          await savePatient({ ...patientData, id: patientId, photoURL }, user.uid, userInfo);
+          await savePatient({ ...patientData, id: patientId, photoURL }, effectiveUserId, userInfo);
           console.log("URL da foto salva no banco.");
         } catch (error) {
           console.error("Erro ao fazer upload da foto:", error);
@@ -273,7 +275,7 @@ export default function Patients() {
         description: `${formData.name} foi ${editingPatient ? 'atualizado' : 'criado'} com sucesso.`,
       });
 
-      const patientsData = await getPatients(user.uid);
+      const patientsData = await getPatients(effectiveUserId);
       setPatients(patientsData);
 
       setIsDialogOpen(false);
@@ -303,13 +305,13 @@ export default function Patients() {
     try {
       const patientToDelete = patients.find(p => p.id === patientId);
       const userInfo = { name: user.displayName || undefined, email: user.email || undefined };
-      await deletePatient(patientId, user.uid, patientToDelete?.name, userInfo);
+      await deletePatient(patientId, effectiveUserId, patientToDelete?.name, userInfo);
       toast({
         title: "Paciente excluído",
         description: "O paciente foi excluído com sucesso.",
       });
 
-      const patientsData = await getPatients(user.uid);
+      const patientsData = await getPatients(effectiveUserId);
       setPatients(patientsData);
       window.location.reload();
     } catch (error) {
@@ -414,9 +416,12 @@ export default function Patients() {
                         autoComplete="name"
                         placeholder="Nome do paciente…"
                         value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (/^[a-zA-ZÀ-ÿ\s]*$/.test(value)) {
+                            setFormData({ ...formData, name: value });
+                          }
+                        }}
                         className="h-11"
                       />
                     </div>
@@ -496,9 +501,12 @@ export default function Patients() {
                       autoComplete="off"
                       placeholder="Liste sensibilidades conhecidas…"
                       value={formData.allergies}
-                      onChange={(e) =>
-                        setFormData({ ...formData, allergies: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (/^[a-zA-ZÀ-ÿ\s,]*$/.test(value)) {
+                          setFormData({ ...formData, allergies: value });
+                        }
+                      }}
                       className="h-11"
                     />
                   </div>

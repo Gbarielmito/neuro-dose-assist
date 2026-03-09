@@ -204,74 +204,108 @@ export function identifyRiskPatterns(
     const alerts: RiskAlert[] = [];
     const patientMap = new Map(patients.map(p => [p.id, p.name]));
 
-    // Analisa últimas 7 doses
-    const recentDoses = doses.slice(0, 7);
+    // Agrupa doses por paciente
+    const dosesByPatient = new Map<string, DoseRecord[]>();
+    doses.forEach(dose => {
+        if (!dose.patientId) return;
+        const existing = dosesByPatient.get(dose.patientId) || [];
+        existing.push(dose);
+        dosesByPatient.set(dose.patientId, existing);
+    });
 
-    // 1. Verifica eficácia baixa persistente
-    const lowEfficacyDoses = recentDoses.filter(d =>
-        (d.analysis?.efficacyPrediction || 0) < 60
-    );
+    dosesByPatient.forEach((patientDoses, patientId) => {
+        const patientName = patientMap.get(patientId) || "Paciente Desconhecido";
 
-    if (lowEfficacyDoses.length >= 3) {
-        alerts.push({
-            id: `risk-low-efficacy-${Date.now()}`,
-            type: "low_efficacy",
-            severity: lowEfficacyDoses.length >= 5 ? "high" : "medium",
-            message: `${lowEfficacyDoses.length} doses recentes com eficácia abaixo de 60%`,
-            timestamp: new Date().toISOString()
-        });
-    }
+        // Ordena doses do paciente por data decrescente (mais recentes primeiro)
+        const sortedDoses = [...patientDoses].sort((a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
 
-    // 2. Verifica humor baixo persistente
-    const lowMoodDoses = recentDoses.filter(d =>
-        (d.subjectiveState?.mood || 5) < 3
-    );
+        const recentDoses = sortedDoses.slice(0, 7);
 
-    if (lowMoodDoses.length >= 2) {
-        alerts.push({
-            id: `risk-low-mood-${Date.now()}`,
-            type: "low_mood",
-            severity: lowMoodDoses.length >= 4 ? "high" : "medium",
-            message: `Humor baixo reportado em ${lowMoodDoses.length} registros recentes`,
-            timestamp: new Date().toISOString()
-        });
-    }
+        // 1. Verifica eficácia baixa persistente
+        const lowEfficacyDoses = recentDoses.filter(d =>
+            (d.analysis?.efficacyPrediction || 0) < 60
+        );
 
-    // 3. Verifica irregularidade nas doses (gap de mais de 3 dias)
-    if (doses.length >= 2) {
-        const lastDose = new Date(doses[0]?.timestamp);
-        const previousDose = new Date(doses[1]?.timestamp);
-        const daysDiff = differenceInDays(lastDose, previousDose);
-
-        if (daysDiff > 3) {
+        if (lowEfficacyDoses.length >= 3) {
             alerts.push({
-                id: `risk-irregular-${Date.now()}`,
-                type: "irregular_doses",
-                severity: daysDiff > 7 ? "high" : "medium",
-                message: `Gap de ${daysDiff} dias entre últimas doses`,
+                id: `risk-low-efficacy-${patientId}-${Date.now()}`,
+                type: "low_efficacy",
+                severity: lowEfficacyDoses.length >= 5 ? "high" : "medium",
+                patientId,
+                patientName,
+                message: `${lowEfficacyDoses.length} doses recentes com eficácia abaixo de 60%`,
                 timestamp: new Date().toISOString()
             });
         }
-    }
 
-    // 4. Verifica tendência de declínio
-    if (recentDoses.length >= 5) {
-        const firstHalf = recentDoses.slice(Math.floor(recentDoses.length / 2));
-        const secondHalf = recentDoses.slice(0, Math.floor(recentDoses.length / 2));
+        // 2. Verifica humor baixo persistente
+        const lowMoodDoses = recentDoses.filter(d =>
+            (d.subjectiveState?.mood || 5) < 3
+        );
 
-        const avgFirst = calculateAvgEfficacy(firstHalf);
-        const avgSecond = calculateAvgEfficacy(secondHalf);
-
-        if (avgSecond < avgFirst - 15) {
+        if (lowMoodDoses.length >= 2) {
             alerts.push({
-                id: `risk-declining-${Date.now()}`,
-                type: "declining_trend",
-                severity: avgSecond < avgFirst - 25 ? "high" : "medium",
-                message: `Tendência de queda na eficácia (${avgFirst}% → ${avgSecond}%)`,
+                id: `risk-low-mood-${patientId}-${Date.now()}`,
+                type: "low_mood",
+                severity: lowMoodDoses.length >= 4 ? "high" : "medium",
+                patientId,
+                patientName,
+                message: `Humor baixo reportado em ${lowMoodDoses.length} registros recentes`,
                 timestamp: new Date().toISOString()
             });
         }
-    }
+
+        // 3. Verifica irregularidade nas doses (gap de mais de 3 dias)
+        if (sortedDoses.length >= 2) {
+            const lastDose = new Date(sortedDoses[0]?.timestamp);
+            const previousDose = new Date(sortedDoses[1]?.timestamp);
+            const daysDiff = differenceInDays(lastDose, previousDose);
+
+            if (daysDiff > 3) {
+                alerts.push({
+                    id: `risk-irregular-${patientId}-${Date.now()}`,
+                    type: "irregular_doses",
+                    severity: daysDiff > 7 ? "high" : "medium",
+                    patientId,
+                    patientName,
+                    message: `Gap de ${daysDiff} dias entre últimas doses`,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+
+        // 4. Verifica tendência de declínio
+        if (recentDoses.length >= 5) {
+            const firstHalf = recentDoses.slice(Math.floor(recentDoses.length / 2));
+            const secondHalf = recentDoses.slice(0, Math.floor(recentDoses.length / 2));
+
+            const avgFirst = calculateAvgEfficacy(firstHalf);
+            const avgSecond = calculateAvgEfficacy(secondHalf);
+
+            if (avgSecond < avgFirst - 15) {
+                alerts.push({
+                    id: `risk-declining-${patientId}-${Date.now()}`,
+                    type: "declining_trend",
+                    severity: avgSecond < avgFirst - 25 ? "high" : "medium",
+                    patientId,
+                    patientName,
+                    message: `Tendência de queda na eficácia (${avgFirst}% → ${avgSecond}%)`,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+    });
+
+    // Ordena os alertas por severidade e depois por data
+    const severityWeight = { high: 3, medium: 2, low: 1 };
+    alerts.sort((a, b) => {
+        if (severityWeight[a.severity] !== severityWeight[b.severity]) {
+            return severityWeight[b.severity] - severityWeight[a.severity];
+        }
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
 
     return alerts;
 }

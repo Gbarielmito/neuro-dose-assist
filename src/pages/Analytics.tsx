@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -48,6 +49,7 @@ import { cn } from "@/lib/utils";
 
 export default function Analytics() {
     const { user } = useAuth();
+    const { effectiveUserId } = useClinic();
 
     // Data states
     const [doses, setDoses] = useState<DoseRecord[]>([]);
@@ -62,16 +64,16 @@ export default function Analytics() {
 
     // Load data
     const loadData = async (showRefresh = false) => {
-        if (!user) return;
+        if (!user || !effectiveUserId) return;
 
         if (showRefresh) setRefreshing(true);
         else setLoading(true);
 
         try {
             const [dosesData, patientsData, medicationsData] = await Promise.all([
-                getDoses(user.uid),
-                getPatients(user.uid),
-                getMedications(user.uid)
+                getDoses(effectiveUserId),
+                getPatients(effectiveUserId),
+                getMedications(effectiveUserId)
             ]);
 
             setDoses(dosesData || []);

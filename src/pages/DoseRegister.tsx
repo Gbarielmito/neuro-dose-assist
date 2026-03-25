@@ -354,7 +354,15 @@ export default function DoseRegister() {
                         autoComplete="off"
                         placeholder="Ex.: 20…"
                         value={doseAmount}
-                        onChange={(e) => setDoseAmount(e.target.value)}
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          // Limitar a 2 casas decimais
+                          const dotIndex = val.indexOf('.');
+                          if (dotIndex !== -1 && val.length - dotIndex - 1 > 2) {
+                            val = val.slice(0, dotIndex + 3);
+                          }
+                          setDoseAmount(val);
+                        }}
                         className="h-11"
                       />
                       {isDoseOverLimit ? (
@@ -391,7 +399,17 @@ export default function DoseRegister() {
                         type="time"
                         autoComplete="off"
                         value={doseTime}
-                        onChange={(e) => setDoseTime(e.target.value)}
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          // Validar que minutos não ultrapassem 59 e horas não ultrapassem 23
+                          const parts = val.split(':');
+                          if (parts.length === 2) {
+                            let hours = Math.min(23, Math.max(0, parseInt(parts[0]) || 0));
+                            let minutes = Math.min(59, Math.max(0, parseInt(parts[1]) || 0));
+                            val = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                          }
+                          setDoseTime(val);
+                        }}
                         className="h-11"
                       />
                     </div>

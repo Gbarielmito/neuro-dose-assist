@@ -313,7 +313,6 @@ export default function Patients() {
 
       const patientsData = await getPatients(effectiveUserId);
       setPatients(patientsData);
-      window.location.reload();
     } catch (error) {
       console.error("Erro ao deletar paciente:", error);
       toast({
@@ -415,6 +414,7 @@ export default function Patients() {
                         name="patientName"
                         autoComplete="name"
                         placeholder="Nome do paciente…"
+                        maxLength={60}
                         value={formData.name}
                         onChange={(e) => {
                           const value = e.target.value;
@@ -424,6 +424,15 @@ export default function Patients() {
                         }}
                         className="h-11"
                       />
+                      <p className={cn(
+                        "text-xs",
+                        formData.name.length >= 60
+                          ? "text-destructive font-medium"
+                          : "text-muted-foreground"
+                      )}>
+                        {formData.name.length}/60 caracteres
+                        {formData.name.length >= 60 && " — limite atingido"}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="patient-age">Idade *</Label>

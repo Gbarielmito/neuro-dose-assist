@@ -100,6 +100,16 @@ export default function DoseRegister() {
       return;
     }
 
+    // Verificar se a dose está abaixo do limite mínimo do medicamento
+    if (selectedMedication?.minDose && Number(doseAmount) < selectedMedication.minDose) {
+      toast({
+        title: "Dose abaixo do limite",
+        description: `A dose informada (${doseAmount} mg) está abaixo do limite mínimo de ${selectedMedication.minDose} mg cadastrado para ${selectedMedication.name}. Corrija antes de continuar.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Verificar se a dose ultrapassa o limite máximo do medicamento
     if (selectedMedication?.maxDose && Number(doseAmount) > selectedMedication.maxDose) {
       toast({
@@ -207,15 +217,18 @@ export default function DoseRegister() {
   const selectedMedication = medications.find((m) => m.id === selectedMedicationId);
 
   const isDoseOverLimit = !!(selectedMedication?.maxDose && Number(doseAmount) > selectedMedication.maxDose);
+  const isDoseUnderLimit = !!(selectedMedication?.minDose && Number(doseAmount) > 0 && Number(doseAmount) < selectedMedication.minDose);
 
   const canContinueStep1 =
     !!selectedPatientId &&
     !!selectedMedicationId &&
     !!doseAmount &&
     Number(doseAmount) > 0 &&
+    !!adminForm &&
     !!doseTime &&
     !!indication &&
-    !isDoseOverLimit;
+    !isDoseOverLimit &&
+    !isDoseUnderLimit;
 
   return (
     <MainLayout>
@@ -365,7 +378,11 @@ export default function DoseRegister() {
                         }}
                         className="h-11"
                       />
-                      {isDoseOverLimit ? (
+                      {isDoseUnderLimit ? (
+                        <p className="text-xs text-destructive font-medium">
+                          ⚠ Dose abaixo do limite mínimo de {selectedMedication?.minDose} mg para {selectedMedication?.name}.
+                        </p>
+                      ) : isDoseOverLimit ? (
                         <p className="text-xs text-destructive font-medium">
                           ⚠ Dose excede o limite máximo de {selectedMedication?.maxDose} mg para {selectedMedication?.name}.
                         </p>

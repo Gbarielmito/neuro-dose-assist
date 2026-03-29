@@ -306,6 +306,22 @@ export default function Medications() {
       return;
     }
 
+    // Verificar duplicidade de medicamento (apenas ao criar)
+    const isDuplicate = medications.some(
+      (med) =>
+        med.name.trim().toLowerCase() === formData.name.trim().toLowerCase() &&
+        med.id !== editingId
+    );
+
+    if (isDuplicate) {
+      toast({
+        title: "Medicamento já cadastrado",
+        description: `O medicamento "${formData.name}" já existe no catálogo.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validar doses
     const minDose = parseFloat(formData.minDose);
     const maxDose = parseFloat(formData.maxDose);
@@ -314,6 +330,15 @@ export default function Medications() {
       toast({
         title: "Doses inválidas",
         description: "As doses devem ser números válidos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (minDose < 0 || maxDose < 0) {
+      toast({
+        title: "Doses inválidas",
+        description: "As doses não podem ser negativas.",
         variant: "destructive",
       });
       return;
@@ -530,10 +555,12 @@ export default function Medications() {
                       type="number"
                       inputMode="decimal"
                       step="0.01"
+                      min="0"
                       autoComplete="off"
                       placeholder="Ex.: 5…"
                       value={formData.minDose}
                       onChange={(e) => setFormData({ ...formData, minDose: e.target.value })}
+                      onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
                       className="h-11 tabular-nums"
                     />
                   </div>
@@ -545,10 +572,12 @@ export default function Medications() {
                       type="number"
                       inputMode="decimal"
                       step="0.01"
+                      min="0"
                       autoComplete="off"
                       placeholder="Ex.: 60…"
                       value={formData.maxDose}
                       onChange={(e) => setFormData({ ...formData, maxDose: e.target.value })}
+                      onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
                       className="h-11 tabular-nums"
                     />
                   </div>

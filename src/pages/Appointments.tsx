@@ -126,7 +126,7 @@ export default function Appointments() {
         };
 
         loadData();
-    }, [user]);
+    }, [user, effectiveUserId]);
 
     // Calendar helpers
     const calendarDays = useMemo(() => {

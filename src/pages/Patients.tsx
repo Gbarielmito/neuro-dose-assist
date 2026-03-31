@@ -135,7 +135,7 @@ export default function Patients() {
     };
 
     loadPatients();
-  }, [user]);
+  }, [user, effectiveUserId]);
 
   // Filtrar pacientes
   const filteredPatients = patients.filter((patient) =>

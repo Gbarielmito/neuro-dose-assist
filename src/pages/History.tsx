@@ -150,7 +150,7 @@ export default function History() {
       }
     }
     fetchData();
-  }, [user]);
+  }, [user, effectiveUserId]);
 
   // Handle Export
   const handleExport = () => {

@@ -88,7 +88,7 @@ export default function DoseRegister() {
       }
     }
     loadData();
-  }, [user]);
+  }, [user, effectiveUserId]);
 
   const handleSubmit = async () => {
     if (!selectedPatientId || !selectedMedicationId || !doseAmount || Number(doseAmount) <= 0 || !indication) {

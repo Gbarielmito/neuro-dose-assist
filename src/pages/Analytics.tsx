@@ -89,7 +89,7 @@ export default function Analytics() {
 
     useEffect(() => {
         loadData();
-    }, [user]);
+    }, [user, effectiveUserId]);
 
     // Filter doses by patient
     const filteredDoses = useMemo(() => {

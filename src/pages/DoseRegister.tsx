@@ -437,14 +437,20 @@ export default function DoseRegister() {
                         id="indication"
                         name="indication"
                         autoComplete="off"
+                        maxLength={100}
                         placeholder="Ex.: TDAH, depressão…"
                         value={indication}
                         onChange={(e) => setIndication(e.target.value)}
                         className="h-11"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Informe o motivo clínico (uma ou mais condições).
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">
+                          Informe o motivo clínico (uma ou mais condições).
+                        </p>
+                        <span className={`text-xs tabular-nums ${indication.length >= 100 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                          {indication.length}/100
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -528,11 +534,17 @@ export default function DoseRegister() {
                         id="effects"
                         name="effects"
                         autoComplete="off"
+                        maxLength={200}
                         placeholder="Descreva efeitos observados (se houver)…"
                         rows={3}
                         value={effects}
                         onChange={(e) => setEffects(e.target.value)}
                       />
+                      <div className="flex justify-end">
+                        <span className={`text-xs tabular-nums ${effects.length >= 200 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                          {effects.length}/200
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

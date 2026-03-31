@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     activePatients: 0,
     activePatientsTrend: 0,
+    patientsTrend: 0,
     dosesLast7Days: 0,
     dosesTrend: 0,
     avgEfficacy: 0,
@@ -70,9 +71,20 @@ export default function Dashboard() {
         const now = new Date();
         const sevenDaysAgo = subDays(now, 7);
         const fourteenDaysAgo = subDays(now, 14);
+        const thirtyDaysAgo = subDays(now, 30);
+        const sixtyDaysAgo = subDays(now, 60);
 
-        // Active Patients
+        // Active Patients - trend: last 30 days vs previous 30 days
         const activePatientsCount = patientsData.length;
+        const patientsLast30 = patientsData.filter(p => p.createdAt && isAfter(new Date(p.createdAt), thirtyDaysAgo)).length;
+        const patientsPrev30 = patientsData.filter(p => {
+          if (!p.createdAt) return false;
+          const d = new Date(p.createdAt);
+          return isAfter(d, sixtyDaysAgo) && !isAfter(d, thirtyDaysAgo);
+        }).length;
+        const patientsTrend = patientsPrev30 > 0
+          ? Math.round(((patientsLast30 - patientsPrev30) / patientsPrev30) * 100)
+          : (patientsLast30 > 0 ? 100 : 0);
 
         // Doses Last 7 Days vs Previous 7 Days
         const recentDoses = dosesData.filter(d => isAfter(new Date(d.timestamp), sevenDaysAgo));
@@ -83,32 +95,43 @@ export default function Dashboard() {
 
         const doseTrend = previousDoses.length > 0
           ? Math.round(((recentDoses.length - previousDoses.length) / previousDoses.length) * 100)
-          : 0;
+          : (recentDoses.length > 0 ? 100 : 0);
 
-        // Avg Efficacy (Overall)
-        let totalEfficacy = 0;
-        let countEfficacy = 0;
-        dosesData.forEach(d => {
-          const eff = d.analysis?.efficacyPrediction || ((d.subjectiveState?.energy || 0) * 10);
-          if (eff) {
-            totalEfficacy += eff;
-            countEfficacy++;
-          }
-        });
-        const avgEfficacyVal = countEfficacy > 0 ? Math.round(totalEfficacy / countEfficacy) : 0;
+        // Avg Efficacy - overall + trend (last 7 vs prev 7)
+        const calcAvgEfficacy = (doseList: DoseRecord[]) => {
+          let total = 0;
+          let count = 0;
+          doseList.forEach(d => {
+            const eff = d.analysis?.efficacyPrediction || ((d.subjectiveState?.energy || 0) * 10);
+            if (eff) { total += eff; count++; }
+          });
+          return count > 0 ? Math.round(total / count) : 0;
+        };
+        const avgEfficacyVal = calcAvgEfficacy(dosesData);
+        const recentEfficacy = calcAvgEfficacy(recentDoses);
+        const prevEfficacy = calcAvgEfficacy(previousDoses);
+        const efficacyTrendVal = prevEfficacy > 0
+          ? Math.round(((recentEfficacy - prevEfficacy) / prevEfficacy) * 100)
+          : (recentEfficacy > 0 ? 100 : 0);
 
-        // AI Inferences (Count doses with analysis)
+        // AI Inferences - trend (last 7 vs prev 7)
         const aiInferencesCount = dosesData.filter(d => d.analysis).length;
+        const recentAI = recentDoses.filter(d => d.analysis).length;
+        const prevAI = previousDoses.filter(d => d.analysis).length;
+        const aiTrendVal = prevAI > 0
+          ? Math.round(((recentAI - prevAI) / prevAI) * 100)
+          : (recentAI > 0 ? 100 : 0);
 
         setStats({
           activePatients: activePatientsCount,
-          activePatientsTrend: 3,
+          activePatientsTrend: patientsLast30,
+          patientsTrend: patientsTrend,
           dosesLast7Days: recentDoses.length,
           dosesTrend: doseTrend,
           avgEfficacy: avgEfficacyVal,
-          efficacyTrend: 2,
+          efficacyTrend: efficacyTrendVal,
           aiInferences: aiInferencesCount,
-          aiTrend: 5
+          aiTrend: aiTrendVal
         });
 
         // Chart Data (Daily avg efficacy last 7 days)
@@ -293,9 +316,9 @@ export default function Dashboard() {
             <MetricCard
               title="Pacientes Ativos"
               value={stats.activePatients.toString()}
-              subtitle={stats.activePatientsTrend > 0 ? `+${stats.activePatientsTrend} novos` : "Sem novos"}
+              subtitle={stats.activePatientsTrend > 0 ? `+${stats.activePatientsTrend} novos (30d)` : "Sem novos"}
               icon={<Users className="w-5 h-5 sm:w-6 sm:h-6" />}
-              trend={{ value: 12, label: "vs. mês anterior" }}
+              trend={{ value: stats.patientsTrend, label: "vs. mês anterior" }}
             />
           </div>
           <div className="animate-fade-up stagger-2">
@@ -314,7 +337,7 @@ export default function Dashboard() {
               value={`${stats.avgEfficacy}%`}
               subtitle="Geral"
               icon={<Activity className="w-5 h-5 sm:w-6 sm:h-6" />}
-              trend={{ value: 5, label: "estável" }}
+              trend={{ value: stats.efficacyTrend, label: "vs. semana anterior" }}
             />
           </div>
           <div className="animate-fade-up stagger-4">
@@ -323,7 +346,7 @@ export default function Dashboard() {
               value={stats.aiInferences.toString()}
               subtitle="Total processado"
               icon={<Brain className="w-5 h-5 sm:w-6 sm:h-6" />}
-              trend={{ value: stats.aiTrend, label: "crescente" }}
+              trend={{ value: stats.aiTrend, label: "vs. semana anterior" }}
               variant="warning"
             />
           </div>

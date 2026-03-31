@@ -38,17 +38,30 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
 
         try {
             setLoading(true);
-            const [clinicData, membershipData, resolvedUserId] = await Promise.all([
+
+            // Safety timeout: if Firebase takes too long (e.g. on F5 in production),
+            // fall back to user's own UID after 8 seconds
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Clinic load timeout")), 8000)
+            );
+
+            const dataPromise = Promise.all([
                 getUserClinic(user.uid),
                 getClinicMembership(user.uid),
                 getEffectiveUserId(user.uid),
             ]);
+
+            const [clinicData, membershipData, resolvedUserId] = await Promise.race([
+                dataPromise,
+                timeoutPromise,
+            ]) as [Awaited<ReturnType<typeof getUserClinic>>, Awaited<ReturnType<typeof getClinicMembership>>, string];
 
             setClinic(clinicData);
             setMembership(membershipData);
             setEffectiveUserId(resolvedUserId);
         } catch (error) {
             console.error("Error loading clinic context:", error);
+            // Fallback: use own UID so pages can still load data
             setEffectiveUserId(user.uid);
         } finally {
             setLoading(false);

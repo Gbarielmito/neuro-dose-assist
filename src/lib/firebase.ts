@@ -9,6 +9,7 @@ import { getDatabase } from "firebase/database";
 const firebaseConfig = {
     apiKey: "AIzaSyAuZz_kd2y1nePipjOiwCHCpX3G4UCwZmY",
     authDomain: "neurodose-40e5e.firebaseapp.com",
+    databaseURL: "https://neurodose-40e5e-default-rtdb.firebaseio.com",
     projectId: "neurodose-40e5e",
     storageBucket: "neurodose-40e5e.firebasestorage.app",
     messagingSenderId: "979759766920",
@@ -39,8 +40,6 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 
 // Inicializar Realtime Database
-// Se você tiver uma URL específica do Realtime Database, adicione databaseURL na configuração acima
-// Exemplo: databaseURL: "https://neurodose-40e5e-default-rtdb.firebaseio.com"
 export const realtimeDb = getDatabase(app);
 
 export default app;
